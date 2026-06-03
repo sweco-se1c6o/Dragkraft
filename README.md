@@ -22,12 +22,12 @@ Implemented:
 - Pure signal/block occupation kernel for MB braking curves, booking, arrival, and release times.
 - Simulation result includes timing-point passages and signal/block occupation rows.
 - CSV/JSON output writer for summary, timing points, block occupation, and speed profile.
+- CLI entrypoint for running a workbook and writing outputs.
 
 Still pending:
 
 - MATLAB baseline export fixtures.
 - Full orchestrator parity against MATLAB baseline.
-- CLI entrypoint.
 - End-to-end parity tests against MATLAB.
 
 ## Excel Input Contract
@@ -53,6 +53,8 @@ Workbook distances are in kilometers and converted to rounded meter positions. S
 
 ```text
 dragkraft/
+  __main__.py
+  cli.py
   io/
     excel_reader.py
     outputs.py
@@ -102,6 +104,14 @@ Run the full test suite:
 ```
 
 Some Excel-reader tests use the local legacy workbook at `old/luleaHamn3.xlsx`. If that local-only workbook is absent, those tests are skipped.
+
+## CLI
+
+Run the default legacy-style scenario and write CSV/JSON outputs:
+
+```powershell
+.\.venv\Scripts\python.exe -m dragkraft run old/luleaHamn3.xlsx --sheet NyProfil --train legacy-freight-20 --max-speed-kmh 40 --flip --out runs/nyprofil
+```
 
 ## Development Notes
 
