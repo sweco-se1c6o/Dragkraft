@@ -56,6 +56,14 @@ def test_simulate_profile_wires_envelope_acceleration_time_and_timing_points() -
     assert result.timing_passages[0].name == "TP"
     assert result.timing_passages[0].position_m == 3
     assert result.timing_passages[0].time_s == pytest.approx(result.cumulative_time_s[3])
+    assert result.block_occupation.occupations[0].name == "MB1"
+    assert result.block_occupation.occupations[0].signal_position_m == 4
+    assert result.block_occupation.occupations[0].arrival_time_s == pytest.approx(
+        result.cumulative_time_s[4]
+    )
+    assert result.block_occupation.occupations[0].release_time_s == pytest.approx(
+        result.cumulative_time_s[5] + 3.0
+    )
 
 
 def test_simulate_workbook_reads_excel_contract_and_applies_scenario_settings(
@@ -96,7 +104,7 @@ def _sample_profile() -> TrackProfile:
         timing_points=(TimingPoint(10.003, "TP"),),
         stops=(Stop(10.004, "Stop", 30.0),),
         curves=(CurveSegment(10.0, 10.005, math.inf),),
-        signals=(SignalBlock(10.004, "MB1", 5.0, 12.0, 3.0, 4.0),),
+        signals=(SignalBlock(10.004, "MB1", 5.0, 0.0, 3.0, 4.0),),
     )
 
 
@@ -166,7 +174,7 @@ def _write_legacy_contract_workbook(path: Path) -> None:
     worksheet["AD5"] = 10.004
     worksheet["AE5"] = "MB1"
     worksheet["AF5"] = 5.0
-    worksheet["AG5"] = 12.0
+    worksheet["AG5"] = 0.0
     worksheet["AH5"] = 3.0
     worksheet["AI5"] = 4.0
 

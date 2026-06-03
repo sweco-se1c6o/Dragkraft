@@ -20,13 +20,14 @@ Implemented:
 - Route preparation for tunnel, equivalent-gradient, and curve-resistance vectors.
 - Acceleration callback wiring traction, adhesion, resistance, gradient, tunnel, and curve terms.
 - Pure signal/block occupation kernel for MB braking curves, booking, arrival, and release times.
+- Simulation result includes timing-point passages and signal/block occupation rows.
+- CSV/JSON output writer for summary, timing points, block occupation, and speed profile.
 
 Still pending:
 
 - MATLAB baseline export fixtures.
 - Full orchestrator parity against MATLAB baseline.
-- Signal/block occupation integration and parity.
-- CLI and machine-readable CSV/JSON outputs.
+- CLI entrypoint.
 - End-to-end parity tests against MATLAB.
 
 ## Excel Input Contract
@@ -54,14 +55,17 @@ Workbook distances are in kilometers and converted to rounded meter positions. S
 dragkraft/
   io/
     excel_reader.py
+    outputs.py
   domain/
     track.py
     train.py
     scenario.py
   simulation/
     acceleration.py
+    blocks.py
     braking.py
     envelope.py
+    orchestrator.py
     profile.py
     route.py
     resistance.py

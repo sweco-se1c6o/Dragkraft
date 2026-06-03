@@ -55,7 +55,9 @@ def block_occupation(
         curve = np.maximum(float(release_speeds[index]), curve)
         curves[index, :] = curve
 
-        speed_diff = np.abs(speed_profile - curve)
+        speed_diff = np.full(speed_profile.shape, np.inf, dtype=float)
+        finite = np.isfinite(speed_profile) & np.isfinite(curve)
+        speed_diff[finite] = np.abs(speed_profile[finite] - curve[finite])
         matches = np.flatnonzero(speed_diff <= float(speed_tolerance_mps))
         if matches.size:
             intersection = int(matches[0])

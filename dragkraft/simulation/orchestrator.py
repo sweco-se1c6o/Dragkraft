@@ -10,6 +10,7 @@ from dragkraft.domain.track import TrackProfile
 from dragkraft.domain.train import TrainConfig
 from dragkraft.io.excel_reader import read_track_profile
 from dragkraft.simulation.acceleration import forward_acceleration_profile
+from dragkraft.simulation.blocks import block_occupation
 from dragkraft.simulation.envelope import build_initial_speed_envelope
 from dragkraft.simulation.route import (
     build_acceleration_callback,
@@ -95,6 +96,25 @@ def simulate_profile(
             strict=True,
         )
     )
+    blocks = block_occupation(
+        signal_positions_m=route.vectors.signal_positions_m,
+        signal_names=route.vectors.signal_names,
+        release_speeds_mps=route.vectors.signal_release_speeds_mps,
+        overlaps_m=route.vectors.signal_overlaps_m,
+        release_times_s=route.vectors.signal_release_times_s,
+        setting_times_s=route.vectors.signal_setting_times_s,
+        speed_profile_mps=speed_profile,
+        cumulative_time_s=cumulative_time,
+        retardation_mps2=train.braking_decelerations_mps2,
+        speed_intervals_mps=train.braking_speed_intervals_mps,
+        max_speed_mps=float(np.max(route.vectors.speed_limits_mps)),
+        train_length_m=train.train_length_m,
+        equivalent_gradient=route.equivalent_gradient,
+        min_deceleration_mps2=settings.min_signal_deceleration_mps2,
+        max_deceleration_mps2=train.max_deceleration_mps2,
+        speed_tolerance_mps=settings.speed_tolerance_mps,
+        reserve_before_arrival_s=settings.reserve_before_arrival_s,
+    )
     return SimulationResult(
         route=route,
         initial_envelope=initial,
@@ -104,4 +124,5 @@ def simulate_profile(
         time_s_per_m=time_s_per_m,
         cumulative_time_s=cumulative_time,
         timing_passages=timing_passages,
+        block_occupation=blocks,
     )

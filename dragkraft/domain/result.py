@@ -42,3 +42,4 @@ class SimulationResult:
     time_s_per_m: np.ndarray
     cumulative_time_s: np.ndarray
     timing_passages: tuple[TimingPassage, ...]
+    block_occupation: BlockOccupationResult
