@@ -1,0 +1,14 @@
+old/
+.venv/
+.worktrees/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+runs/
+tests/fixtures/legacy_nyprofil/
