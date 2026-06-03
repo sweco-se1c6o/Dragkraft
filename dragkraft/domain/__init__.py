@@ -1,3 +1,4 @@
+from dragkraft.domain.scenario import SimulationSettings
 from dragkraft.domain.track import (
     CurveSegment,
     GradientSegment,
@@ -8,14 +9,17 @@ from dragkraft.domain.track import (
     TrackProfile,
     TunnelSegment,
 )
+from dragkraft.domain.train import TrainConfig
 
 __all__ = [
     "CurveSegment",
     "GradientSegment",
     "SignalBlock",
+    "SimulationSettings",
     "SpeedLimitSegment",
     "Stop",
     "TimingPoint",
     "TrackProfile",
+    "TrainConfig",
     "TunnelSegment",
 ]
