@@ -15,11 +15,14 @@ Implemented:
 - Backward braking curve kernel shared by `dec.m` and `decMB.m`.
 - Acceleration force helpers from `acc3.m`.
 - Forward acceleration stepping loop.
+- Active legacy freight train and default `NyProfil` scenario config.
+- Initial speed-envelope builder for STH transitions and stops.
+- Route preparation for tunnel, equivalent-gradient, and curve-resistance vectors.
+- Acceleration callback wiring traction, adhesion, resistance, gradient, tunnel, and curve terms.
 
 Still pending:
 
 - MATLAB baseline export fixtures.
-- Active train/scenario configuration models.
 - Full orchestrator from Excel input to simulated result.
 - Signal/block occupation calculation.
 - CLI and machine-readable CSV/JSON outputs.
@@ -52,12 +55,18 @@ dragkraft/
     excel_reader.py
   domain/
     track.py
+    train.py
+    scenario.py
   simulation/
     acceleration.py
     braking.py
+    envelope.py
     profile.py
+    route.py
     resistance.py
   units.py
+  vehicles/
+    legacy_cases.py
 tests/
 docs/tools/
 ```
