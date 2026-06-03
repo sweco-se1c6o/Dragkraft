@@ -53,14 +53,16 @@ def simulate_profile(
         settings=settings,
         equivalent_gradient=route.equivalent_gradient,
     )
+    acceleration_envelope = initial.speed_envelope_mps.copy()
+    acceleration_envelope[route.vectors.stop_positions_m.astype(int)] = 0.0
     acceleration = forward_acceleration_profile(
         start_position_m=1,
         start_speed_mps=min(
-            initial.speed_envelope_mps[1],
+            acceleration_envelope[1],
             train.vehicle_max_speed_mps,
         ),
         max_position_m=route.vectors.max_position_m,
-        speed_envelope_mps=initial.speed_envelope_mps,
+        speed_envelope_mps=acceleration_envelope,
         vehicle_max_speed_mps=train.vehicle_max_speed_mps,
         acceleration_at=build_acceleration_callback(route=route, train=train),
     )

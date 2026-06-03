@@ -2,7 +2,7 @@
 
 Python refactor of a legacy MATLAB train performance simulation for Dragkraft.
 
-The goal is numerical parity with the MATLAB implementation while preserving the existing Excel input contract exactly. The current Python code is an incremental refactor: core input parsing and several pure numerical kernels are implemented and tested, but the full end-to-end simulation is not complete yet.
+The goal is numerical parity with the MATLAB implementation while preserving the existing Excel input contract exactly. The current Python code can run the default legacy `NyProfil` scenario, write CSV/JSON outputs, and compare that run against captured MATLAB baseline fixtures.
 
 ## Current Status
 
@@ -23,12 +23,13 @@ Implemented:
 - Simulation result includes timing-point passages and signal/block occupation rows.
 - CSV/JSON output writer for summary, timing points, block occupation, and speed profile.
 - CLI entrypoint for running a workbook and writing outputs.
+- MATLAB baseline fixtures for the default `NyProfil` scenario.
+- End-to-end parity test for default `NyProfil` timing, speed, gradient, curve force, and block occupation.
 
 Still pending:
 
-- MATLAB baseline export fixtures.
-- Full orchestrator parity against MATLAB baseline.
-- End-to-end parity tests against MATLAB.
+- Additional scenario parity coverage beyond the default `NyProfil` case.
+- Optional plotting/reporting polish.
 
 ## Excel Input Contract
 
@@ -104,6 +105,12 @@ Run the full test suite:
 ```
 
 Some Excel-reader tests use the local legacy workbook at `old/luleaHamn3.xlsx`. If that local-only workbook is absent, those tests are skipped.
+
+The default `NyProfil` parity test uses tracked MATLAB baseline CSV fixtures under `tests/fixtures/matlab_nyprofil_default/`. Re-export them with MATLAB when the legacy reference changes. First prepare a temp legacy run directory with an `xlsread` shim, then run the MATLAB command printed by the script:
+
+```powershell
+.\.venv\Scripts\python.exe tools\prepare_matlab_baseline_run.py
+```
 
 ## CLI
 
