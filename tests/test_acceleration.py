@@ -6,6 +6,7 @@ import pytest
 from dragkraft.simulation.acceleration import (
     acceleration_rate,
     adhesion_limited_force,
+    forward_acceleration_profile,
     net_force,
     traction_force_type1,
     traction_force_type2,
@@ -142,3 +143,33 @@ def test_acceleration_rate_caps_net_force_over_dynamic_mass() -> None:
         dynamic_mass_kg=10.0,
         max_acceleration_mps2=1.5,
     ) == pytest.approx(1.5)
+
+
+def test_forward_acceleration_profile_writes_zero_speed_half_step_then_average_speed() -> None:
+    result = forward_acceleration_profile(
+        start_position_m=1,
+        start_speed_mps=0.0,
+        max_position_m=2,
+        speed_envelope_mps=np.full(3, np.inf),
+        vehicle_max_speed_mps=np.inf,
+        acceleration_at=lambda position, speed: 1.0,
+    )
+
+    assert result[1] == pytest.approx(2**0.5 / 2)
+    assert result[2] == pytest.approx(2**0.5 / 2)
+
+
+def test_forward_acceleration_profile_uses_speed_envelope_for_next_step() -> None:
+    envelope = np.full(4, np.inf)
+    envelope[2] = 0.5
+
+    result = forward_acceleration_profile(
+        start_position_m=1,
+        start_speed_mps=0.0,
+        max_position_m=3,
+        speed_envelope_mps=envelope,
+        vehicle_max_speed_mps=np.inf,
+        acceleration_at=lambda position, speed: 1.0,
+    )
+
+    assert result[3] == pytest.approx(1.0)

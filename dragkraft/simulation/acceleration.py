@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 from numpy.typing import ArrayLike
 
@@ -120,3 +122,40 @@ def acceleration_rate(
 ) -> float:
     acceleration = float(net_force_n) / float(dynamic_mass_kg)
     return float(min(acceleration, float(max_acceleration_mps2)))
+
+
+def forward_acceleration_profile(
+    *,
+    start_position_m: int,
+    start_speed_mps: float,
+    max_position_m: int,
+    speed_envelope_mps: ArrayLike,
+    vehicle_max_speed_mps: float,
+    acceleration_at: Callable[[int, float], float],
+) -> np.ndarray:
+    """Run acc3's forward per-meter integration loop with pure inputs."""
+    max_position = int(max_position_m)
+    profile = np.full(max_position + 1, np.inf, dtype=float)
+    envelope = np.asarray(speed_envelope_mps, dtype=float)
+    position = int(start_position_m)
+    speed = float(start_speed_mps)
+    average_speed = speed
+
+    while position <= max_position:
+        acceleration = float(acceleration_at(position, speed))
+        if speed == 0:
+            profile[position] = np.sqrt(2.0 * acceleration) / 2.0
+        else:
+            profile[position] = average_speed
+
+        position += 1
+        if position <= max_position:
+            next_speed = np.sqrt(2.0 * acceleration + speed**2)
+            average_speed = (speed + next_speed) / 2.0
+            speed = min(
+                speed + acceleration / average_speed,
+                envelope[position],
+                float(vehicle_max_speed_mps),
+            )
+
+    return profile
