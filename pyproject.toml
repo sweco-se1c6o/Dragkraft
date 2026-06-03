@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "dragkraft"
 version = "0.1.0"
 description = "Python refactor of the legacy MATLAB Dragkraft train simulation."
-readme = "PROJECT_DOCUMENTATION_AND_REFACTOR_PLAN.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "matplotlib",
