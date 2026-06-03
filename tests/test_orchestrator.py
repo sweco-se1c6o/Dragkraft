@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import math
 
 import numpy as np
 import pytest
+from openpyxl import Workbook
 
 from dragkraft.domain.track import (
     CurveSegment,
@@ -18,7 +20,7 @@ from dragkraft.domain.track import (
     TunnelSegment,
 )
 from dragkraft.domain.train import TrainConfig
-from dragkraft.simulation.orchestrator import simulate_profile
+from dragkraft.simulation.orchestrator import simulate_profile, simulate_workbook
 from dragkraft.vehicles.legacy_cases import default_nyprofil_scenario
 
 
@@ -54,6 +56,35 @@ def test_simulate_profile_wires_envelope_acceleration_time_and_timing_points() -
     assert result.timing_passages[0].name == "TP"
     assert result.timing_passages[0].position_m == 3
     assert result.timing_passages[0].time_s == pytest.approx(result.cumulative_time_s[3])
+
+
+def test_simulate_workbook_reads_excel_contract_and_applies_scenario_settings(
+    tmp_path: Path,
+) -> None:
+    workbook_path = tmp_path / "legacy_contract.xlsx"
+    _write_legacy_contract_workbook(workbook_path)
+    settings = replace(
+        default_nyprofil_scenario(),
+        sheet_name="NyProfil",
+        speed_override_kmh=7.2,
+        flip_profiles=False,
+        short_time_margin=1.0,
+        use_distance_before_signal=False,
+        use_train_length_delay=False,
+        time_offset_s=0.0,
+    )
+
+    result = simulate_workbook(
+        workbook_path=workbook_path,
+        train=_sample_train(),
+        settings=settings,
+    )
+
+    assert result.route.vectors.origin_km == 10.0
+    assert result.route.vectors.max_position_m == 5
+    assert result.initial_envelope.candidate_profiles_mps[0, 1:6].tolist() == [2.0] * 5
+    assert result.timing_passages[0].name == "TP"
+    assert result.timing_passages[0].position_m == 3
 
 
 def _sample_profile() -> TrackProfile:
@@ -102,3 +133,41 @@ def _sample_train() -> TrainConfig:
         braking_speed_intervals_mps=np.array([[0.0, 10.0]]),
         braking_decelerations_mps2=np.array([0.5]),
     )
+
+
+def _write_legacy_contract_workbook(path: Path) -> None:
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "NyProfil"
+
+    worksheet["B5"] = 10.0
+    worksheet["C5"] = 10.005
+    worksheet["D5"] = 99.0
+
+    worksheet["G5"] = 10.0
+    worksheet["H5"] = 10.005
+    worksheet["I5"] = 0.0
+
+    worksheet["L5"] = 10.0
+    worksheet["M5"] = 10.005
+    worksheet["N5"] = 0.0
+
+    worksheet["Q5"] = 10.003
+    worksheet["R5"] = "TP"
+
+    worksheet["T5"] = 10.004
+    worksheet["U5"] = "Stop"
+    worksheet["V5"] = 30.0
+
+    worksheet["Y5"] = 10.0
+    worksheet["Z5"] = 10.005
+    worksheet["AA5"] = 99999
+
+    worksheet["AD5"] = 10.004
+    worksheet["AE5"] = "MB1"
+    worksheet["AF5"] = 5.0
+    worksheet["AG5"] = 12.0
+    worksheet["AH5"] = 3.0
+    worksheet["AI5"] = 4.0
+
+    workbook.save(path)

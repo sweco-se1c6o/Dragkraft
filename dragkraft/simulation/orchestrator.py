@@ -1,17 +1,38 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from dragkraft.domain.result import SimulationResult, TimingPassage
 from dragkraft.domain.scenario import SimulationSettings
 from dragkraft.domain.track import TrackProfile
 from dragkraft.domain.train import TrainConfig
+from dragkraft.io.excel_reader import read_track_profile
 from dragkraft.simulation.acceleration import forward_acceleration_profile
 from dragkraft.simulation.envelope import build_initial_speed_envelope
 from dragkraft.simulation.route import (
     build_acceleration_callback,
     prepare_route_vectors,
 )
+
+
+def simulate_workbook(
+    *,
+    workbook_path: str | Path,
+    train: TrainConfig,
+    settings: SimulationSettings,
+) -> SimulationResult:
+    profile = read_track_profile(
+        workbook_path,
+        settings.sheet_name,
+        speed_override_kmh=settings.speed_override_kmh,
+    )
+    return simulate_profile(
+        profile=profile,
+        train=train,
+        settings=settings,
+    )
 
 
 def simulate_profile(
