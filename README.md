@@ -19,12 +19,13 @@ Implemented:
 - Initial speed-envelope builder for STH transitions and stops.
 - Route preparation for tunnel, equivalent-gradient, and curve-resistance vectors.
 - Acceleration callback wiring traction, adhesion, resistance, gradient, tunnel, and curve terms.
+- Pure signal/block occupation kernel for MB braking curves, booking, arrival, and release times.
 
 Still pending:
 
 - MATLAB baseline export fixtures.
-- Full orchestrator from Excel input to simulated result.
-- Signal/block occupation calculation.
+- Full orchestrator parity against MATLAB baseline.
+- Signal/block occupation integration and parity.
 - CLI and machine-readable CSV/JSON outputs.
 - End-to-end parity tests against MATLAB.
 

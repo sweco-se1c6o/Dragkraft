@@ -16,6 +16,23 @@ class TimingPassage:
 
 
 @dataclass(frozen=True)
+class BlockOccupation:
+    name: str
+    signal_position_m: int
+    speed_difference_mps: float
+    intersection_position_m: int | None
+    booking_time_s: float
+    arrival_time_s: float
+    release_time_s: float
+
+
+@dataclass(frozen=True)
+class BlockOccupationResult:
+    occupations: tuple[BlockOccupation, ...]
+    mb_braking_curves_mps: np.ndarray
+
+
+@dataclass(frozen=True)
 class SimulationResult:
     route: PreparedRoute
     initial_envelope: InitialSpeedEnvelope
