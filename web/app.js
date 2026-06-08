@@ -52,6 +52,10 @@ const ADVANCED_FIELDS = [
 
 let pyodide = null;
 let workbookBytes = null;
+let lastPayload = null;
+let savedScenarios = loadScenarios();
+
+const CMP_COLORS = ["#e8431f", "#16130b", "#3c6e71", "#b8860b", "#6f6a5a", "#9333ea", "#2563eb"];
 
 // --------------------------------------------------------------------------- //
 // Boot
@@ -80,6 +84,7 @@ from dragkraft.web.payload import run_simulation_json, default_form_values_json
 `);
     const defaults = JSON.parse(pyodide.runPython("default_form_values_json()"));
     buildForm(defaults);
+    renderComparison(); // restore any scenarios saved in a previous visit
     document.getElementById("boot").style.display = "none";
     setEngine(true);
   } catch (err) {
@@ -177,20 +182,174 @@ function wireInputs() {
   drop.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
   document.getElementById("run-btn").addEventListener("click", run);
 
-  // Export any chart to PNG via its figure header button.
+  document.getElementById("save-scenario").addEventListener("click", saveScenario);
+  document.getElementById("clear-scenarios").addEventListener("click", clearScenarios);
+
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".fig-export");
-    if (!btn) return;
-    const gd = document.getElementById(btn.dataset.target);
-    if (!gd || !gd.data) return;
-    Plotly.downloadImage(gd, {
-      format: "png",
-      filename: "dragkraft-" + btn.dataset.name,
-      scale: 2,
-      width: gd.clientWidth,
-      height: gd.clientHeight,
-    });
+    // Export a chart to PNG via its figure header button.
+    const png = e.target.closest(".fig-export[data-target]");
+    if (png) {
+      const gd = document.getElementById(png.dataset.target);
+      if (gd && gd.data) {
+        Plotly.downloadImage(gd, {
+          format: "png",
+          filename: "dragkraft-" + png.dataset.name,
+          scale: 2,
+          width: gd.clientWidth,
+          height: gd.clientHeight,
+        });
+      }
+      return;
+    }
+    // Export data (JSON / CSV) via the run-action buttons.
+    const data = e.target.closest("[data-export]");
+    if (data) exportData(data.dataset.export);
   });
+}
+
+// --------------------------------------------------------------------------- //
+// Scenario comparison
+// --------------------------------------------------------------------------- //
+function loadScenarios() {
+  try {
+    return JSON.parse(localStorage.getItem("dragkraft.scenarios") || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+function persistScenarios() {
+  try {
+    localStorage.setItem("dragkraft.scenarios", JSON.stringify(savedScenarios));
+  } catch (e) {
+    /* storage full or disabled — comparison still works in-memory this session */
+  }
+}
+
+function saveScenario() {
+  if (!lastPayload) return;
+  const label =
+    (document.getElementById("scenario-label").value || lastPayload.scenario_name || "Scenario").trim() ||
+    "Scenario";
+  const r = lastPayload.route;
+  const t = lastPayload.speed_time;
+  savedScenarios.push({
+    label,
+    summary: lastPayload.summary,
+    position_km: downsample(r.position_km, 800),
+    speed_by_position_kmh: downsample(r.simulated_speed_kmh, 800),
+    time_s: downsample(t.time_s, 800),
+    speed_by_time_kmh: downsample(t.speed_kmh, 800),
+  });
+  persistScenarios();
+  renderComparison();
+  document.getElementById("comparison").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function clearScenarios() {
+  savedScenarios = [];
+  persistScenarios();
+  renderComparison();
+}
+
+function renderComparison() {
+  const section = document.getElementById("comparison");
+  document.getElementById("comparison-count").textContent = `${savedScenarios.length} saved`;
+  if (savedScenarios.length === 0) {
+    section.classList.add("hidden");
+    if (document.getElementById("results").classList.contains("hidden")) {
+      document.getElementById("empty").classList.remove("hidden");
+    }
+    return;
+  }
+  section.classList.remove("hidden");
+  document.getElementById("empty").classList.add("hidden");
+
+  const line = (s, i) => ({ color: CMP_COLORS[i % CMP_COLORS.length], width: 2 });
+  Plotly.react(
+    "chart-cmp-position",
+    savedScenarios.map((s, i) => ({ x: s.position_km, y: s.speed_by_position_kmh, name: s.label, mode: "lines", line: line(s, i) })),
+    baseLayout("Position [km]", "Speed [km/h]"),
+    PLOT_CONFIG
+  );
+  Plotly.react(
+    "chart-cmp-time",
+    savedScenarios.map((s, i) => ({ x: s.time_s, y: s.speed_by_time_kmh, name: s.label, mode: "lines", line: line(s, i) })),
+    baseLayout("Time [s]", "Speed [km/h]"),
+    PLOT_CONFIG
+  );
+
+  const base = savedScenarios[0].summary.total_time_s;
+  renderTable(
+    "table-comparison",
+    ["#", "Scenario", "Total [s]", "Δ [s]", "Route [m]", "Wagons", "Adhesion", "Mass [t]", "Max [km/h]"],
+    savedScenarios.map((s, i) => {
+      const su = s.summary;
+      return [
+        i + 1, s.label, su.total_time_s, round1(su.total_time_s - base),
+        su.route_length_m, su.wagons, su.adhesion_coefficient, su.train_mass_t, su.simulated_max_speed_kmh,
+      ];
+    })
+  );
+}
+
+function downsample(arr, n) {
+  if (!arr || arr.length <= n) return (arr || []).slice();
+  const out = [];
+  const step = (arr.length - 1) / (n - 1);
+  for (let i = 0; i < n; i++) out.push(arr[Math.round(i * step)]);
+  return out;
+}
+
+function round1(x) {
+  return Math.round(x * 10) / 10;
+}
+
+// --------------------------------------------------------------------------- //
+// Export (JSON / CSV)
+// --------------------------------------------------------------------------- //
+function exportData(kind) {
+  if (!lastPayload) return;
+  const name = (lastPayload.scenario_name || "scenario").replace(/[^a-z0-9_-]+/gi, "-");
+  if (kind === "json") {
+    download(`dragkraft-${name}.json`, JSON.stringify(lastPayload, null, 2), "application/json");
+  } else if (kind === "speed") {
+    const r = lastPayload.route, t = lastPayload.speed_time;
+    const rows = r.position_km.map((p, i) => [p, r.simulated_speed_kmh[i], t.time_s[i]]);
+    download(`dragkraft-${name}-speed.csv`, toCsv(["position_km", "speed_kmh", "time_s"], rows), "text/csv");
+  } else if (kind === "timing") {
+    const rows = lastPayload.tables.timing.map((x) => [x.position_m, x.name, x.time_s]);
+    download(`dragkraft-${name}-timing.csv`, toCsv(["position_m", "name", "time_s"], rows), "text/csv");
+  } else if (kind === "blocks") {
+    const rows = lastPayload.tables.blocks.map((x) => [
+      x.name, x.signal_position_m, x.speed_difference_mps, x.intersection_position_m,
+      x.booking_time_s, x.arrival_time_s, x.release_time_s,
+    ]);
+    const headers = ["name", "signal_position_m", "speed_difference_mps", "intersection_position_m", "booking_time_s", "arrival_time_s", "release_time_s"];
+    download(`dragkraft-${name}-blocks.csv`, toCsv(headers, rows), "text/csv");
+  }
+}
+
+function toCsv(headers, rows) {
+  return [headers.join(","), ...rows.map((r) => r.map(csvCell).join(","))].join("\n");
+}
+
+function csvCell(v) {
+  if (v == null) return "";
+  const s = String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function loadFile(file) {
@@ -228,6 +387,8 @@ async function run() {
 // Render
 // --------------------------------------------------------------------------- //
 function render(p) {
+  lastPayload = p;
+  document.getElementById("scenario-label").value = p.scenario_name || "Scenario";
   document.getElementById("empty").classList.add("hidden");
   document.getElementById("summary").classList.remove("hidden");
   const results = document.getElementById("results");

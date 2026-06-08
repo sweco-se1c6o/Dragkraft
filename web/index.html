@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=5" />
+    <link rel="stylesheet" href="styles.css?v=6" />
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
   </head>
@@ -58,6 +58,20 @@
         <div id="summary" class="hidden"></div>
 
         <div id="results" class="results hidden">
+          <div class="run-actions">
+            <div class="run-actions-left">
+              <input id="scenario-label" class="field-input scenario-label" type="text" placeholder="Scenario name" />
+              <button id="save-scenario" class="action-btn action-btn--accent">+ Save to comparison</button>
+            </div>
+            <div class="run-actions-right">
+              <span class="action-group-label">Export</span>
+              <button class="action-btn" data-export="json">JSON</button>
+              <button class="action-btn" data-export="speed">Speed CSV</button>
+              <button class="action-btn" data-export="timing">Timing CSV</button>
+              <button class="action-btn" data-export="blocks">Blocks CSV</button>
+            </div>
+          </div>
+
           <section class="figure">
             <div class="figure-head"><span class="figure-no">01</span><h3>Route profile</h3><span class="figure-sub">Speed &amp; terrain by position</span><button class="fig-export" data-target="chart-route" data-name="route-profile">PNG</button></div>
             <div id="chart-route" class="chart chart-tall"></div>
@@ -87,6 +101,21 @@
           </div>
         </div>
 
+        <section id="comparison" class="figure hidden">
+          <div class="figure-head">
+            <span class="figure-no">★</span><h3>Scenario comparison</h3>
+            <span class="figure-sub" id="comparison-count">0 saved</span>
+            <button id="clear-scenarios" class="fig-export">Clear all</button>
+          </div>
+          <div class="grid-2">
+            <div id="chart-cmp-position" class="chart"></div>
+            <div id="chart-cmp-time" class="chart"></div>
+          </div>
+          <div class="table-scroll" style="margin-top: 18px">
+            <table id="table-comparison" class="data-table"></table>
+          </div>
+        </section>
+
         <div id="empty" class="empty-state">
           <div class="rule"></div>
           <p>Choose a workbook and run a simulation to see results.</p>
@@ -94,6 +123,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
   </body>
 </html>
