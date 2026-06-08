@@ -25,12 +25,29 @@ const PLOT_CONFIG = { responsive: true, displayModeBar: false };
 const CORE_FIELDS = [
   { key: "scenario_name", label: "Scenario name", type: "text" },
   { key: "sheet_name", label: "Sheet", type: "select", options: ["NyProfil", "DagensProfil", "SpeedTest"] },
-  { key: "train_name", label: "Train preset", type: "select", options: ["freight"] },
   { key: "extra_wagon_count", label: "Wagons", type: "number", step: 1 },
   { key: "adhesion_coefficient", label: "Adhesion coefficient", type: "number", step: 0.05 },
   { key: "speed_override_kmh", label: "Max speed [km/h]", type: "number", step: 1 },
   { key: "flip_profiles", label: "Flip direction", type: "bool" },
 ];
+
+// Shown only when the "Custom train…" preset is selected.
+const CUSTOM_FIELDS = [
+  { key: "custom_locomotive_count", label: "Locomotives", type: "number", step: 1 },
+  { key: "custom_locomotive_mass_t", label: "Loco mass total [t]", type: "number", step: 1 },
+  { key: "custom_wagon_mass_t", label: "Wagon mass each [t]", type: "number", step: 1 },
+  { key: "custom_max_force_kn", label: "Max tractive force [kN]", type: "number", step: 10 },
+  { key: "custom_power_kw", label: "Continuous power [kW]", type: "number", step: 100 },
+  { key: "custom_start_force_kn", label: "Start force [kN]", type: "number", step: 10 },
+  { key: "custom_start_speed_kmh", label: "Start-force speed [km/h]", type: "number", step: 1 },
+  { key: "custom_vehicle_max_speed_kmh", label: "Vehicle max speed [km/h]", type: "number", step: 1 },
+  { key: "custom_max_acceleration_mps2", label: "Max acceleration [m/s²]", type: "number", step: 0.1 },
+  { key: "custom_max_deceleration_mps2", label: "Max deceleration [m/s²]", type: "number", step: 0.1 },
+  { key: "custom_locomotive_length_m", label: "Loco length each [m]", type: "number", step: 0.1 },
+  { key: "custom_wagon_length_m", label: "Wagon length each [m]", type: "number", step: 0.1 },
+];
+
+let trainLibrary = [];
 
 const ADVANCED_FIELDS = [
   { key: "altitude_at_start_m", label: "Start altitude [m]", type: "number", step: 0.1 },
@@ -80,9 +97,10 @@ await micropip.install("openpyxl")
     setStatus("Almost ready");
     await pyodide.runPythonAsync(`
 await micropip.install("emfs:/tmp/${WHEEL_FILE}", deps=False)
-from dragkraft.web.payload import run_simulation_json, default_form_values_json
+from dragkraft.web.payload import run_simulation_json, default_form_values_json, train_library_json
 `);
     const defaults = JSON.parse(pyodide.runPython("default_form_values_json()"));
+    trainLibrary = JSON.parse(pyodide.runPython("train_library_json()"));
     buildForm(defaults);
     renderComparison(); // restore any scenarios saved in a previous visit
     document.getElementById("boot").style.display = "none";
@@ -104,7 +122,7 @@ function bootError() {
   setEngine(false);
 }
 
-function setEngine(ready, err) {
+function setEngine(ready) {
   const pill = document.getElementById("engine-pill");
   if (ready) {
     pill.textContent = "Engine ready";
@@ -120,8 +138,40 @@ function setEngine(ready, err) {
 // Form
 // --------------------------------------------------------------------------- //
 function buildForm(defaults) {
+  const select = document.getElementById("train-select");
+  select.innerHTML = trainLibrary
+    .map((t) => `<option value="${t.key}" ${t.key === defaults.train_name ? "selected" : ""}>${t.label}</option>`)
+    .join("");
+  select.addEventListener("change", () => updateTrainUI(select.value));
+
+  renderFields(document.getElementById("custom-train"), CUSTOM_FIELDS, defaults);
   renderFields(document.getElementById("form"), CORE_FIELDS, defaults);
   renderFields(document.getElementById("form-advanced"), ADVANCED_FIELDS, defaults);
+  updateTrainUI(select.value);
+}
+
+function updateTrainUI(key) {
+  const features = document.getElementById("train-features");
+  const custom = document.getElementById("custom-train");
+  const lib = trainLibrary.find((t) => t.key === key);
+  const isCustom = lib && lib.custom;
+  custom.classList.toggle("hidden", !isCustom);
+  if (!lib || isCustom) {
+    features.classList.add("hidden");
+    return;
+  }
+  features.classList.remove("hidden");
+  const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+  features.innerHTML =
+    `<p class="train-desc">${lib.description}</p>` +
+    '<dl class="mini-spec">' +
+    row("Locomotives", lib.locomotives) +
+    row("Loco mass", lib.locomotive_mass_t + " t") +
+    row("Wagon mass", lib.wagon_mass_t + " t / ea") +
+    row("Max force", lib.max_tractive_force_kn + " kN") +
+    row("Max speed", lib.vehicle_max_speed_kmh + " km/h") +
+    row("Traction", lib.traction_model) +
+    "</dl>";
 }
 
 function renderFields(container, fields, defaults) {
@@ -190,15 +240,7 @@ function wireInputs() {
     const png = e.target.closest(".fig-export[data-target]");
     if (png) {
       const gd = document.getElementById(png.dataset.target);
-      if (gd && gd.data) {
-        Plotly.downloadImage(gd, {
-          format: "png",
-          filename: "dragkraft-" + png.dataset.name,
-          scale: 2,
-          width: gd.clientWidth,
-          height: gd.clientHeight,
-        });
-      }
+      if (gd && gd.data) exportChartPng(gd, png.dataset.name);
       return;
     }
     // Export data (JSON / CSV) via the run-action buttons.
@@ -265,7 +307,7 @@ function renderComparison() {
   section.classList.remove("hidden");
   document.getElementById("empty").classList.add("hidden");
 
-  const line = (s, i) => ({ color: CMP_COLORS[i % CMP_COLORS.length], width: 2 });
+  const line = (_s, i) => ({ color: CMP_COLORS[i % CMP_COLORS.length], width: 2 });
   Plotly.react(
     "chart-cmp-position",
     savedScenarios.map((s, i) => ({ x: s.position_km, y: s.speed_by_position_kmh, name: s.label, mode: "lines", line: line(s, i) })),
@@ -338,6 +380,24 @@ function csvCell(v) {
   if (v == null) return "";
   const s = String(v);
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+// Export a chart as a report-ready PNG: temporarily give it a solid white
+// background (the live charts use a transparent canvas), then restore.
+function exportChartPng(gd, name) {
+  Plotly.relayout(gd, { paper_bgcolor: "#ffffff", plot_bgcolor: "#ffffff" })
+    .then(() =>
+      Plotly.downloadImage(gd, {
+        format: "png",
+        filename: "dragkraft-" + name,
+        scale: 2,
+        width: gd.clientWidth,
+        height: gd.clientHeight,
+      })
+    )
+    .finally(() =>
+      Plotly.relayout(gd, { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)" })
+    );
 }
 
 function download(filename, text, mime) {

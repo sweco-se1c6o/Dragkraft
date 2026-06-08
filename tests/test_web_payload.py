@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from dragkraft.web.payload import WebFormError, parse_form, run_simulation, run_simulation_json
+from dragkraft.web.payload import (
+    WebFormError,
+    parse_form,
+    run_simulation,
+    run_simulation_json,
+    train_library,
+)
 
 LOCAL_WORKBOOK = Path(__file__).resolve().parents[1] / "old" / "luleaHamn3.xlsx"
 
@@ -18,6 +24,28 @@ def _skip_without_workbook() -> None:
 def test_parse_form_rejects_unknown_train_preset() -> None:
     with pytest.raises(WebFormError):
         parse_form({"train_name": "bullet-train"})
+
+
+def test_train_library_exposes_presets_and_custom() -> None:
+    keys = [t["key"] for t in train_library()]
+    assert keys[:1] == ["freight"]
+    assert "green-cargo" in keys and "iore" in keys and "td" in keys
+    assert keys[-1] == "custom"
+
+
+def test_parse_form_builds_selected_library_train() -> None:
+    train, _settings, _name, _sheet = parse_form({"train_name": "iore", "extra_wagon_count": 12})
+    assert train.name == "iore"
+    assert train.locomotive_count == 2
+
+
+def test_parse_form_builds_custom_train_from_params() -> None:
+    train, _s, _n, _sh = parse_form(
+        {"train_name": "custom", "extra_wagon_count": 8, "custom_max_force_kn": 720}
+    )
+    assert train.name == "custom"
+    assert train.traction_model_type == 1
+    assert train.max_force_n == pytest.approx(720_000.0)
 
 
 def test_run_simulation_json_returns_error_dict_for_bad_form() -> None:

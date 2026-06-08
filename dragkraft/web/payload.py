@@ -20,10 +20,22 @@ from dragkraft.domain.result import SimulationResult
 from dragkraft.domain.scenario import SimulationSettings
 from dragkraft.domain.train import TrainConfig
 from dragkraft.simulation.orchestrator import simulate_workbook
-from dragkraft.vehicles.scenarios import default_scenario, freight_train
+from dragkraft.vehicles.scenarios import (
+    TRAIN_LIBRARY,
+    build_train,
+    custom_train,
+    default_scenario,
+)
 
-TRAIN_PRESETS = ("freight",)
 MAX_CHART_POINTS = 4000
+
+
+def _train_label(name: str) -> str:
+    if name in TRAIN_LIBRARY:
+        return TRAIN_LIBRARY[name].label
+    if name == "custom":
+        return "Custom train"
+    return name
 
 
 class WebFormError(ValueError):
@@ -36,8 +48,8 @@ class WebFormError(ValueError):
 def parse_form(values: dict[str, Any]) -> tuple[TrainConfig, SimulationSettings, str, str]:
     defaults = default_scenario()
     train_name = _text(values, "train_name", defaults.train_name)
-    if train_name not in TRAIN_PRESETS:
-        raise WebFormError(f"Unsupported train preset: {train_name}")
+    if train_name != "custom" and train_name not in TRAIN_LIBRARY:
+        raise WebFormError(f"Unsupported train: {train_name}")
 
     extra_wagons = _integer(values, "extra_wagon_count", defaults.extra_wagon_count)
     adhesion = _positive(values, "adhesion_coefficient", 0.6)
@@ -85,10 +97,14 @@ def parse_form(values: dict[str, Any]) -> tuple[TrainConfig, SimulationSettings,
             values, "reserve_before_arrival_s", defaults.reserve_before_arrival_s
         ),
     )
-    train = replace(
-        freight_train(extra_wagons=extra_wagons),
-        adhesion_coefficient=adhesion,
-    )
+    if train_name == "custom":
+        train = custom_train(
+            extra_wagons=extra_wagons, adhesion_coefficient=adhesion, params=values
+        )
+    else:
+        train = build_train(
+            train_name, extra_wagons=extra_wagons, adhesion_coefficient=adhesion
+        )
     scenario_name = _text(values, "scenario_name", "Scenario")
     return train, settings, scenario_name, settings.sheet_name
 
@@ -119,11 +135,57 @@ def default_form_values() -> dict[str, Any]:
         "speed_tolerance_kmh": round(d.speed_tolerance_mps * 3.6, 3),
         "min_signal_deceleration_mps2": d.min_signal_deceleration_mps2,
         "reserve_before_arrival_s": d.reserve_before_arrival_s,
+        # Custom-train builder defaults (type-1 traction model).
+        "custom_locomotive_count": 1,
+        "custom_locomotive_mass_t": 76.0,
+        "custom_locomotive_length_m": 15.4,
+        "custom_wagon_mass_t": 84.0,
+        "custom_wagon_length_m": 11.0,
+        "custom_max_force_kn": 600.0,
+        "custom_start_force_kn": 600.0,
+        "custom_start_speed_kmh": 5.0,
+        "custom_power_kw": 5000.0,
+        "custom_vehicle_max_speed_kmh": 100.0,
+        "custom_max_acceleration_mps2": 1.0,
+        "custom_max_deceleration_mps2": 0.7,
     }
 
 
 def default_form_values_json() -> str:
     return json.dumps(default_form_values())
+
+
+def train_library() -> list[dict[str, Any]]:
+    """Selectable trains with their fixed (per-consist) features for the UI."""
+    presets = [
+        {
+            "key": spec.key,
+            "label": spec.label,
+            "description": spec.description,
+            "custom": False,
+            "locomotives": spec.locomotive_count,
+            "locomotive_mass_t": round(spec.locomotive_mass_kg / 1000.0, 1),
+            "wagon_mass_t": round(spec.wagon_mass_kg / 1000.0, 1),
+            "vehicle_max_speed_kmh": spec.vehicle_max_speed_kmh,
+            "traction_model": "Type 2 — piecewise",
+            "max_tractive_force_kn": round(max(spec.traction_force_points_n) / 1000.0),
+            "default_wagons": spec.default_wagons,
+        }
+        for spec in TRAIN_LIBRARY.values()
+    ]
+    presets.append(
+        {
+            "key": "custom",
+            "label": "Custom train…",
+            "description": "Define your own consist with a force + power traction model.",
+            "custom": True,
+        }
+    )
+    return presets
+
+
+def train_library_json() -> str:
+    return json.dumps(train_library())
 
 
 # --------------------------------------------------------------------------- #
@@ -243,7 +305,7 @@ def _summary(
     return {
         "workbook": workbook_name,
         "sheet": settings.sheet_name,
-        "vehicle_type": "Freight consist" if train.name == "freight" else "Custom train consist",
+        "vehicle_type": _train_label(train.name),
         "train_name": train.name,
         "locomotives": train.locomotive_count,
         "wagons": train.extra_wagon_count,

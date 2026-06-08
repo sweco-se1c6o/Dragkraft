@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=6" />
+    <link rel="stylesheet" href="styles.css?v=7" />
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
   </head>
@@ -41,6 +41,11 @@
           <input id="workbook-file" type="file" accept=".xlsx" class="hidden" />
         </label>
         <p class="hint">Loaded entirely in your browser — nothing is uploaded.</p>
+
+        <label class="field-label">Train</label>
+        <select id="train-select" class="field-select" data-field="train_name" data-type="text"></select>
+        <div id="train-features" class="train-features"></div>
+        <div id="custom-train" class="custom-train fields hidden"></div>
 
         <div id="form" class="fields"></div>
 
@@ -123,6 +128,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=7"></script>
   </body>
 </html>

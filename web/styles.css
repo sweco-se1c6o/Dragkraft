@@ -193,6 +193,14 @@ body {
 .grid-2 { display: grid; grid-template-columns: 1fr; gap: 44px; }
 @media (min-width: 1080px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
 
+/* ---------- Train features + custom builder ---------- */
+.train-features { margin: 10px 0 16px; padding: 12px 14px; background: var(--card); border-left: 2px solid var(--accent); }
+.train-desc { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.mini-spec { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.mini-spec dt { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); }
+.mini-spec dd { margin: 2px 0 0; font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ink); }
+.custom-train { margin: 4px 0 16px; padding: 14px; background: var(--card); border: 1px dashed var(--line-strong); }
+
 /* ---------- Run actions (save + export) ---------- */
 .run-actions {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
