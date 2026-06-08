@@ -30,6 +30,20 @@ def test_equivalent_gradient_weights_multiple_intervals_over_train_length() -> N
     assert result.tolist() == [pytest.approx(0.015)]
 
 
+def test_equivalent_gradient_holds_edge_value_outside_boundaries() -> None:
+    # The route can extend past the gradient table (boundaries start at 100 m);
+    # positions in the leading gap hold the nearest edge value instead of nan.
+    result = equivalent_gradient(
+        boundaries_m=np.array([100.0, 200.0, 300.0]),
+        gradients=np.array([0.010, 0.020]),
+        x_positions_m=np.array([10.0, 350.0]),
+        train_length_m=20.0,
+    )
+
+    assert result.tolist() == [0.010, 0.020]
+    assert np.all(np.isfinite(result))
+
+
 def test_curve_resistance_uses_single_active_interval_force() -> None:
     mass_kg = 1000.0
 

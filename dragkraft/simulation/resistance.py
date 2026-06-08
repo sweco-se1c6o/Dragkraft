@@ -74,7 +74,10 @@ def _weighted_interval_value(
     )
 
     if active.size == 0:
-        return math.nan
+        # The smoothing window lies entirely outside the tabulated boundaries:
+        # the route (from the speed-limit table) can extend past the gradient or
+        # curve data. Hold the nearest edge value instead of producing nan.
+        return float(values[0] if interval_end <= boundaries[0] else values[-1])
     if active.size == 1:
         return float(values[active[0]])
 

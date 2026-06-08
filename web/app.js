@@ -4,20 +4,22 @@
 const WHEEL_FILE = "dragkraft-0.1.0-py3-none-any.whl";
 
 const COLORS = {
-  speed: "#2457d6",
-  speedFill: "rgba(36,87,214,0.10)",
-  sth: "#1f2937",
-  gradient: "#138a65",
-  gradientSoft: "#52a884",
-  altitude: "#7c3aed",
-  curve: "#d97706",
-  signal: "#b91c1c",
-  stall: "#d94848",
-  grid: "#e6edf5",
-  plot: "#f8fafc",
+  speed: "#e8431f",
+  speedFill: "rgba(232,67,31,0.10)",
+  sth: "#16130d",
+  gradient: "#6f6a5a",
+  gradientSoft: "#a59f8c",
+  altitude: "#3c6e71",
+  curve: "#b8860b",
+  signal: "#e8431f",
+  stall: "#e8431f",
+  grid: "#e3ddcf",
+  ink3: "#8c8472",
+  line: "#d8d1c0",
 };
 
-const PLOT_CONFIG = { responsive: true, displaylogo: false };
+const FONT = '"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace';
+const PLOT_CONFIG = { responsive: true, displayModeBar: false };
 
 // Field metadata drives the generated form. type: number | text | bool | select
 const CORE_FIELDS = [
@@ -57,16 +59,23 @@ let workbookBytes = null;
 async function boot() {
   const setStatus = (t) => (document.getElementById("boot-status").textContent = t);
   try {
-    setStatus("Loading Python runtime…");
+    setStatus("Starting simulation engine");
     pyodide = await loadPyodide();
-    setStatus("Loading numpy…");
     await pyodide.loadPackage(["numpy", "micropip"]);
-    setStatus("Loading openpyxl + Dragkraft engine…");
-    const wheelUrl = new URL("dist/" + WHEEL_FILE, location.href).href;
+    setStatus("Preparing engine");
     await pyodide.runPythonAsync(`
 import micropip
 await micropip.install("openpyxl")
-await micropip.install("${wheelUrl}", deps=False)
+`);
+    // Fetch the wheel ourselves and hand micropip a filesystem path. Installing
+    // straight from a URL trips a micropip download bug in recent Pyodide.
+    const wheelUrl = new URL("dist/" + WHEEL_FILE, location.href).href;
+    const resp = await fetch(wheelUrl);
+    if (!resp.ok) throw new Error(`wheel fetch failed (${resp.status})`);
+    pyodide.FS.writeFile("/tmp/" + WHEEL_FILE, new Uint8Array(await resp.arrayBuffer()));
+    setStatus("Almost ready");
+    await pyodide.runPythonAsync(`
+await micropip.install("emfs:/tmp/${WHEEL_FILE}", deps=False)
 from dragkraft.web.payload import run_simulation_json, default_form_values_json
 `);
     const defaults = JSON.parse(pyodide.runPython("default_form_values_json()"));
@@ -74,20 +83,30 @@ from dragkraft.web.payload import run_simulation_json, default_form_values_json
     document.getElementById("boot").style.display = "none";
     setEngine(true);
   } catch (err) {
-    setStatus("Failed to start engine: " + err);
-    setEngine(false, err);
-    console.error(err);
+    bootError();
+    console.error("Engine startup failed:", err);
   }
+}
+
+function bootError() {
+  const boot = document.getElementById("boot");
+  boot.innerHTML =
+    '<div class="boot-error">' +
+    "<p>The simulation engine couldn’t start.</p>" +
+    "<p class=\"boot-hint\">Check your network connection and reload the page.</p>" +
+    '<button class="btn-primary" onclick="location.reload()">Reload</button>' +
+    "</div>";
+  setEngine(false);
 }
 
 function setEngine(ready, err) {
   const pill = document.getElementById("engine-pill");
   if (ready) {
-    pill.textContent = "Engine: ready";
-    pill.className = "rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700";
+    pill.textContent = "Engine ready";
+    pill.className = "status status--ready";
   } else {
-    pill.textContent = "Engine: failed";
-    pill.className = "rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700";
+    pill.textContent = "Engine failed";
+    pill.className = "status status--failed";
   }
   updateRunButton();
 }
@@ -106,25 +125,25 @@ function renderFields(container, fields, defaults) {
     const value = defaults[f.key];
     const wrap = document.createElement("div");
     if (f.type === "bool") {
-      wrap.className = "flex items-center justify-between gap-2";
+      wrap.className = "field-row";
       wrap.innerHTML = `
-        <span class="text-xs font-semibold text-slate-600">${f.label}</span>
-        <label class="relative inline-flex cursor-pointer items-center">
-          <input type="checkbox" data-field="${f.key}" data-type="bool" class="peer sr-only" ${value ? "checked" : ""} />
-          <span class="h-5 w-9 rounded-full bg-slate-300 transition peer-checked:bg-brand-500"></span>
-          <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-4"></span>
+        <span class="field-label">${f.label}</span>
+        <label class="switch">
+          <input type="checkbox" data-field="${f.key}" data-type="bool" ${value ? "checked" : ""} />
+          <span class="switch-track"></span>
+          <span class="switch-thumb"></span>
         </label>`;
     } else if (f.type === "select") {
       const opts = f.options.map((o) => `<option ${o === value ? "selected" : ""}>${o}</option>`).join("");
       wrap.innerHTML = `
-        <label class="mb-1 block text-xs font-semibold text-slate-600">${f.label}</label>
-        <select data-field="${f.key}" data-type="text" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none">${opts}</select>`;
+        <label class="field-label">${f.label}</label>
+        <select data-field="${f.key}" data-type="text" class="field-select">${opts}</select>`;
     } else {
       const step = f.step != null ? `step="${f.step}"` : "";
       wrap.innerHTML = `
-        <label class="mb-1 block text-xs font-semibold text-slate-600">${f.label}</label>
+        <label class="field-label">${f.label}</label>
         <input type="${f.type === "number" ? "number" : "text"}" ${step} data-field="${f.key}" data-type="${f.type}"
-          value="${value ?? ""}" class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm focus:border-brand-500 focus:outline-none" />`;
+          value="${value ?? ""}" class="field-input" />`;
     }
     container.appendChild(wrap);
   }
@@ -150,13 +169,28 @@ function wireInputs() {
   fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
   const drop = document.getElementById("drop");
   ["dragover", "dragenter"].forEach((ev) =>
-    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("border-brand-500", "bg-brand-50"); })
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("dragover"); })
   );
   ["dragleave", "drop"].forEach((ev) =>
-    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("border-brand-500", "bg-brand-50"); })
+    drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("dragover"); })
   );
   drop.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
   document.getElementById("run-btn").addEventListener("click", run);
+
+  // Export any chart to PNG via its figure header button.
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".fig-export");
+    if (!btn) return;
+    const gd = document.getElementById(btn.dataset.target);
+    if (!gd || !gd.data) return;
+    Plotly.downloadImage(gd, {
+      format: "png",
+      filename: "dragkraft-" + btn.dataset.name,
+      scale: 2,
+      width: gd.clientWidth,
+      height: gd.clientHeight,
+    });
+  });
 }
 
 async function loadFile(file) {
@@ -194,9 +228,13 @@ async function run() {
 // Render
 // --------------------------------------------------------------------------- //
 function render(p) {
-  document.getElementById("empty").style.display = "none";
+  document.getElementById("empty").classList.add("hidden");
   document.getElementById("summary").classList.remove("hidden");
-  document.getElementById("results").classList.remove("hidden");
+  const results = document.getElementById("results");
+  results.classList.remove("hidden");
+  results.classList.remove("reveal");
+  void results.offsetWidth; // restart the reveal animation on each run
+  results.classList.add("reveal");
 
   if (p.stall) {
     showBanner(
@@ -224,54 +262,65 @@ function render(p) {
 
 function showBanner(kind, text) {
   const el = document.getElementById("status-banner");
-  el.classList.remove("hidden");
-  const styles = {
-    ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    warn: "border-amber-200 bg-amber-50 text-amber-800",
-    error: "border-red-200 bg-red-50 text-red-800",
-  };
-  el.className = `rounded-xl border px-4 py-3 text-sm font-medium ${styles[kind]}`;
+  el.className = `banner banner-${kind}`;
   el.textContent = text;
 }
 
-const CARD_FIELDS = [
-  ["Run time", (s) => `${s.total_time_s} s`, "Simulation duration"],
+const SPEC_FIELDS = [
   ["Route", (s) => `${s.route_length_m} m`, (s) => s.sheet],
   ["Max speed", (s) => `${s.simulated_max_speed_kmh} km/h`, "Simulated"],
-  ["Consist", (s) => `${s.locomotives} loco / ${s.wagons} wagons`, (s) => s.vehicle_type],
-  ["Train mass", (s) => `${s.train_mass_t} t`, (s) => `Dynamic ${s.dynamic_mass_t} t`],
-  ["Length", (s) => `${s.train_length_m} m`, (s) => `Adhesion ${s.adhesion_mass_t} t`],
+  ["Vehicle max", (s) => `${s.vehicle_max_speed_kmh} km/h`, "Rated"],
+  ["Consist", (s) => `${s.locomotives}+${s.wagons}`, (s) => s.vehicle_type],
+  ["Train mass", (s) => `${s.train_mass_t} t`, (s) => `Dyn ${s.dynamic_mass_t} t`],
+  ["Length", (s) => `${s.train_length_m} m`, (s) => `Adh ${s.adhesion_mass_t} t`],
   ["Adhesion", (s) => `${s.adhesion_coefficient}`, "Coefficient"],
-  ["Models", (s) => `${s.traction_model} / ${s.resistance_model}`, "Traction / resistance"],
-  ["Braking", (s) => `${s.brake_deceleration_min_mps2}–${s.brake_deceleration_max_mps2}`, "Decel range [m/s²]"],
-  ["Infrastructure", (s) => `${s.timing_points} timing / ${s.blocks} blocks`, "Workbook signals"],
+  ["Models", (s) => `${s.traction_model} / ${s.resistance_model}`, "Traction / resist"],
+  ["Braking", (s) => `${s.brake_deceleration_min_mps2}–${s.brake_deceleration_max_mps2}`, "m/s² range"],
+  ["Timing pts", (s) => `${s.timing_points}`, "Reached"],
+  ["Blocks", (s) => `${s.blocks}`, "Reached"],
+  ["Direction", (s) => (s.flip_profiles ? "Flipped" : "Normal"), "Profile"],
 ];
 
 function renderSummary(s) {
   const host = document.getElementById("summary");
-  host.innerHTML = CARD_FIELDS.map(([label, val, detail]) => {
-    const d = typeof detail === "function" ? detail(s) : detail;
-    return `<div class="card p-4">
-      <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">${label}</div>
-      <div class="mt-1 text-lg font-bold text-slate-800">${val(s)}</div>
-      <div class="text-xs text-slate-400">${d}</div>
-    </div>`;
+  const spec = SPEC_FIELDS.map(([label, val, sub]) => {
+    const sv = typeof sub === "function" ? sub(s) : sub;
+    return `<div><dt>${label}</dt><dd>${val(s)}<span class="sub">${sv}</span></dd></div>`;
   }).join("");
+  host.innerHTML = `
+    <div class="hero reveal">
+      <div class="hero-label">Total run time</div>
+      <div class="hero-value">${s.total_time_s}<span class="unit">s</span></div>
+      <div class="hero-sub">${s.route_length_m} m route · ${s.sheet} · ${s.vehicle_type} · ${s.wagons} wagons</div>
+    </div>
+    <dl class="spec reveal">${spec}</dl>`;
 }
 
-function baseLayout(title, xTitle, yTitle, extra = {}) {
+function axis(title) {
+  return {
+    title: { text: title, font: { size: 11, color: COLORS.ink3 } },
+    gridcolor: COLORS.grid,
+    zeroline: false,
+    linecolor: COLORS.line,
+    ticks: "outside",
+    tickcolor: COLORS.line,
+    ticklen: 4,
+    tickfont: { size: 10, color: COLORS.ink3 },
+  };
+}
+
+function baseLayout(xTitle, yTitle, extra = {}) {
   return Object.assign(
     {
-      title: { text: title, font: { size: 15 } },
-      template: "plotly_white",
-      paper_bgcolor: "#ffffff",
-      plot_bgcolor: COLORS.plot,
-      margin: { l: 58, r: 56, t: 48, b: 56 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: FONT, size: 11, color: COLORS.ink3 },
+      margin: { l: 56, r: 46, t: 10, b: 46 },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#172033", font: { color: "#fff" } },
-      xaxis: { title: xTitle, gridcolor: COLORS.grid },
-      yaxis: { title: yTitle, gridcolor: COLORS.grid, zerolinecolor: "#cbd5e1" },
-      legend: { orientation: "h", y: -0.2, x: 0 },
+      hoverlabel: { bgcolor: "#16130d", bordercolor: "#16130d", font: { color: "#f3efe6", family: FONT, size: 12 } },
+      xaxis: axis(xTitle),
+      yaxis: axis(yTitle),
+      legend: { orientation: "h", y: -0.24, x: 0, font: { size: 10 }, bgcolor: "rgba(0,0,0,0)" },
     },
     extra
   );
@@ -301,9 +350,15 @@ function renderRoute(p) {
       marker: { symbol: "diamond", size: 9, color: COLORS.signal },
     });
   }
-  const layout = baseLayout("Route profile", "Position [km]", "Speed [km/h]", {
-    yaxis: { title: "Speed [km/h]", range: [-10, 70], gridcolor: COLORS.grid, zerolinecolor: "#cbd5e1" },
-    yaxis2: { title: "Overlays", overlaying: "y", side: "right", showgrid: false },
+  const yax = axis("Speed [km/h]");
+  yax.range = [-10, 70];
+  const layout = baseLayout("Position [km]", "Speed [km/h]", {
+    yaxis: yax,
+    yaxis2: {
+      title: { text: "Overlays", font: { size: 12, color: "#94a3b8" } },
+      overlaying: "y", side: "right", showgrid: false, zeroline: false,
+      linecolor: "#e5e8f0", tickfont: { size: 11, color: "#94a3b8" },
+    },
     shapes: (r.tunnels || []).map((t) => ({
       type: "line", x0: t.x0_km, x1: t.x1_km, y0: -4, y1: -4, line: { color: COLORS.sth, width: 5 },
     })),
@@ -315,7 +370,7 @@ function renderRoute(p) {
 function renderSpeedTime(p) {
   const t = p.speed_time;
   const traces = [{ x: t.time_s, y: t.speed_kmh, name: "Speed [km/h]", fill: "tozeroy", fillcolor: COLORS.speedFill, line: { color: COLORS.speed, width: 3 } }];
-  const layout = baseLayout("Speed over time", "Time [s]", "Speed [km/h]", { shapes: [] });
+  const layout = baseLayout("Time [s]", "Speed [km/h]", { shapes: [] });
   for (const line of t.timing_lines) layout.shapes.push({ type: "line", x0: line.time_s, x1: line.time_s, yref: "paper", y0: 0, y1: 1, line: { color: COLORS.signal, width: 1, dash: "dot" } });
   if (p.stall) layout.shapes.push(stallShape(p.stall.time_s));
   Plotly.react("chart-speed-time", traces, layout, PLOT_CONFIG);
@@ -323,14 +378,14 @@ function renderSpeedTime(p) {
 
 function renderAcceleration(p) {
   const a = p.acceleration;
-  const traces = [{ x: a.time_s, y: a.accel_mps2, name: "Acceleration [m/s²]", fill: "tozeroy", fillcolor: "rgba(19,138,101,0.10)", line: { color: COLORS.gradient, width: 2 } }];
-  Plotly.react("chart-acceleration", traces, baseLayout("Acceleration over time", "Time [s]", "Acceleration [m/s²]"), PLOT_CONFIG);
+  const traces = [{ x: a.time_s, y: a.accel_mps2, name: "Acceleration [m/s²]", fill: "tozeroy", fillcolor: "rgba(22,19,13,0.06)", line: { color: COLORS.sth, width: 1.8 } }];
+  Plotly.react("chart-acceleration", traces, baseLayout("Time [s]", "Acceleration [m/s²]"), PLOT_CONFIG);
 }
 
 function renderBlocks(p) {
   const b = p.blocks_chart;
-  const traces = [{ x: b.trajectory_time_s, y: b.trajectory_pos_km, name: "Trajectory", line: { color: COLORS.speed, width: 2.2 } }];
-  const layout = baseLayout("Block occupation", "Time [s]", "Position [km]", { hovermode: "closest", shapes: [], annotations: [] });
+  const traces = [{ x: b.trajectory_time_s, y: b.trajectory_pos_km, name: "Trajectory", line: { color: COLORS.speed, width: 2.4 } }];
+  const layout = baseLayout("Time [s]", "Position [km]", { hovermode: "closest", shapes: [], annotations: [] });
   for (const rect of b.rects) {
     layout.shapes.push({
       type: "rect", x0: rect.booking_time_s, x1: rect.release_time_s, y0: rect.position_km - 0.02, y1: rect.position_km + 0.02,
@@ -343,9 +398,9 @@ function renderBlocks(p) {
 
 function renderTable(id, headers, rows) {
   const table = document.getElementById(id);
-  const thead = `<thead class="sticky top-0 bg-slate-50"><tr>${headers.map((h) => `<th class="px-4 py-2 text-left text-xs font-bold text-slate-500">${h}</th>`).join("")}</tr></thead>`;
+  const thead = `<thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${rows
-    .map((r) => `<tr class="border-t border-slate-100">${r.map((c) => `<td class="px-4 py-1.5 text-slate-700">${c ?? ""}</td>`).join("")}</tr>`)
+    .map((r) => `<tr>${r.map((c) => `<td>${c ?? ""}</td>`).join("")}</tr>`)
     .join("")}</tbody>`;
   table.innerHTML = thead + tbody;
 }

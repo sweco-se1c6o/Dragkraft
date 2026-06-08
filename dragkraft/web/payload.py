@@ -9,6 +9,7 @@ form values, and renders the returned payload with Plotly.js.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -139,7 +140,19 @@ def run_simulation(workbook_path: str, values: dict[str, Any] | None = None) -> 
         workbook_name=Path(workbook_path).name,
     )
     payload["scenario_name"] = scenario_name
-    return payload
+    return _json_safe(payload)
+
+
+def _json_safe(obj: Any) -> Any:
+    """Recursively replace non-finite floats with None so the payload is valid
+    JSON (browsers reject the NaN/Infinity tokens that json.dumps emits)."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 
 def run_simulation_json(workbook_path: str, values_json: str = "{}") -> str:

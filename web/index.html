@@ -1,119 +1,99 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dragkraft — Train Performance Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: { 50: "#eef4ff", 500: "#2457d6", 600: "#1d49b8", 700: "#173a93" },
-              ok: "#138a65",
-            },
-            fontFamily: { sans: ["Inter", "Segoe UI", "system-ui", "sans-serif"] },
-          },
-        },
-      };
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=5" />
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"></script>
-    <style>
-      .card {
-        border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-      }
-    </style>
   </head>
-  <body class="h-full bg-slate-100 text-slate-800 font-sans antialiased">
+  <body>
     <!-- Boot overlay -->
-    <div id="boot" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-100">
-      <div class="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-brand-500"></div>
-      <div class="text-sm font-semibold text-slate-600" id="boot-status">Starting simulation engine…</div>
-      <div class="text-xs text-slate-400">First load downloads the Python runtime (cached afterwards)</div>
+    <div id="boot" class="boot">
+      <div class="spinner"></div>
+      <div class="boot-status" id="boot-status">Starting simulation engine</div>
+      <div class="boot-hint">First load downloads the Python runtime (cached afterwards)</div>
     </div>
 
-    <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur">
-      <div class="mx-auto flex max-w-[1500px] items-center justify-between px-6 py-3">
-        <div class="flex items-center gap-3">
-          <div class="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-brand-500 to-ok text-white font-bold">D</div>
-          <div>
-            <h1 class="text-base font-bold leading-tight">Dragkraft</h1>
-            <p class="text-xs text-slate-500 leading-tight">Train performance simulation</p>
-          </div>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <div class="wordmark">Dragkraft<span class="reg">.</span></div>
+        <div class="masthead-meta">
+          <span class="meta-item">Train Performance Simulation</span>
+          <span id="engine-pill" class="status status--starting">Engine starting</span>
         </div>
-        <div id="engine-pill" class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Engine: starting…</div>
       </div>
     </header>
 
-    <main class="mx-auto grid max-w-[1500px] grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[340px_1fr]">
-      <!-- Sidebar / controls -->
-      <aside class="lg:sticky lg:top-[68px] lg:h-fit">
-        <div class="card p-5">
-          <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Scenario</h2>
+    <main class="shell">
+      <!-- Controls -->
+      <aside class="controls">
+        <div class="eyebrow">Scenario</div>
 
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Workbook (.xlsx)</label>
-          <label id="drop" class="mb-1 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-center transition hover:border-brand-500 hover:bg-brand-50">
-            <span class="text-sm font-medium text-slate-600">Drop a workbook or click to browse</span>
-            <span id="file-name" class="text-xs text-slate-400">No file selected</span>
-            <input id="workbook-file" type="file" accept=".xlsx" class="hidden" />
-          </label>
-          <p class="mb-4 text-xs text-slate-400">Loaded entirely in your browser — nothing is uploaded.</p>
+        <label class="field-label">Workbook (.xlsx)</label>
+        <label id="drop" class="dropzone">
+          <span class="dropzone-main">Drop a workbook or click to browse</span>
+          <span id="file-name" class="file-name">No file selected</span>
+          <input id="workbook-file" type="file" accept=".xlsx" class="hidden" />
+        </label>
+        <p class="hint">Loaded entirely in your browser — nothing is uploaded.</p>
 
-          <div id="form" class="space-y-3"></div>
+        <div id="form" class="fields"></div>
 
-          <details class="mt-3 group">
-            <summary class="cursor-pointer list-none text-xs font-bold uppercase tracking-wide text-slate-500 marker:hidden">
-              <span class="inline-block transition group-open:rotate-90">▸</span> Advanced settings
-            </summary>
-            <div id="form-advanced" class="mt-3 space-y-3"></div>
-          </details>
+        <details class="advanced">
+          <summary><span class="caret">▸</span> Advanced settings</summary>
+          <div id="form-advanced" class="fields"></div>
+        </details>
 
-          <button id="run-btn" disabled class="mt-5 w-full rounded-lg bg-gradient-to-br from-brand-500 to-ok px-4 py-2.5 text-sm font-bold text-white shadow disabled:cursor-not-allowed disabled:opacity-50">
-            Run simulation
-          </button>
-        </div>
+        <button id="run-btn" class="btn-primary" disabled>Run simulation</button>
       </aside>
 
-      <!-- Results -->
-      <section class="min-w-0 space-y-6">
-        <div id="status-banner" class="hidden"></div>
+      <!-- Workspace -->
+      <section class="workspace">
+        <div id="status-banner" class="banner hidden"></div>
+        <div id="summary" class="hidden"></div>
 
-        <div id="summary" class="hidden grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5"></div>
+        <div id="results" class="results hidden">
+          <section class="figure">
+            <div class="figure-head"><span class="figure-no">01</span><h3>Route profile</h3><span class="figure-sub">Speed &amp; terrain by position</span><button class="fig-export" data-target="chart-route" data-name="route-profile">PNG</button></div>
+            <div id="chart-route" class="chart chart-tall"></div>
+          </section>
+          <section class="figure">
+            <div class="figure-head"><span class="figure-no">02</span><h3>Speed over time</h3><span class="figure-sub">km/h vs s</span><button class="fig-export" data-target="chart-speed-time" data-name="speed-over-time">PNG</button></div>
+            <div id="chart-speed-time" class="chart"></div>
+          </section>
+          <section class="figure">
+            <div class="figure-head"><span class="figure-no">03</span><h3>Acceleration</h3><span class="figure-sub">m/s² vs s</span><button class="fig-export" data-target="chart-acceleration" data-name="acceleration">PNG</button></div>
+            <div id="chart-acceleration" class="chart"></div>
+          </section>
+          <section class="figure">
+            <div class="figure-head"><span class="figure-no">04</span><h3>Block occupation</h3><span class="figure-sub">Trajectory &amp; signal blocks</span><button class="fig-export" data-target="chart-blocks" data-name="block-occupation">PNG</button></div>
+            <div id="chart-blocks" class="chart chart-tall"></div>
+          </section>
 
-        <div id="results" class="hidden space-y-6">
-          <div class="card p-4"><div id="chart-route" class="h-[460px]"></div></div>
-          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <div class="card p-4"><div id="chart-speed-time" class="h-[360px]"></div></div>
-            <div class="card p-4"><div id="chart-acceleration" class="h-[360px]"></div></div>
-          </div>
-          <div class="card p-4"><div id="chart-blocks" class="h-[400px]"></div></div>
-
-          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <div class="card overflow-hidden">
-              <h3 class="border-b border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">Timing points</h3>
-              <div class="max-h-[360px] overflow-auto"><table id="table-timing" class="w-full text-sm"></table></div>
-            </div>
-            <div class="card overflow-hidden">
-              <h3 class="border-b border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">Block occupation</h3>
-              <div class="max-h-[360px] overflow-auto"><table id="table-blocks" class="w-full text-sm"></table></div>
-            </div>
+          <div class="grid-2">
+            <section class="figure table-block">
+              <div class="figure-head"><span class="figure-no">05</span><h3>Timing points</h3></div>
+              <div class="table-scroll"><table id="table-timing" class="data-table"></table></div>
+            </section>
+            <section class="figure table-block">
+              <div class="figure-head"><span class="figure-no">06</span><h3>Block occupation</h3></div>
+              <div class="table-scroll"><table id="table-blocks" class="data-table"></table></div>
+            </section>
           </div>
         </div>
 
-        <div id="empty" class="card grid place-items-center p-16 text-center text-slate-400">
-          <div>
-            <div class="mb-2 text-4xl">📈</div>
-            <p class="text-sm font-medium">Choose a workbook and run a simulation to see results.</p>
-          </div>
+        <div id="empty" class="empty-state">
+          <div class="rule"></div>
+          <p>Choose a workbook and run a simulation to see results.</p>
         </div>
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=5"></script>
   </body>
 </html>
