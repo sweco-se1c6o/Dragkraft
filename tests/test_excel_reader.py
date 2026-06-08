@@ -9,7 +9,7 @@ from openpyxl import Workbook
 from dragkraft.io.excel_reader import FormulaCacheError, read_track_profile
 
 
-LEGACY_WORKBOOK = Path(__file__).resolve().parents[1] / "old" / "luleaHamn3.xlsx"
+LOCAL_WORKBOOK = Path(__file__).resolve().parents[1] / "old" / "luleaHamn3.xlsx"
 
 
 EXPECTED_COUNTS = {
@@ -43,15 +43,15 @@ EXPECTED_COUNTS = {
 }
 
 
-def require_legacy_workbook() -> Path:
-    if not LEGACY_WORKBOOK.exists():
-        pytest.skip("legacy workbook is local-only because old/ is git-ignored")
-    return LEGACY_WORKBOOK
+def require_local_workbook() -> Path:
+    if not LOCAL_WORKBOOK.exists():
+        pytest.skip("reference workbook is local-only because old/ is git-ignored")
+    return LOCAL_WORKBOOK
 
 
 @pytest.mark.parametrize("sheet_name, counts", EXPECTED_COUNTS.items())
-def test_reads_legacy_workbook_fixed_blocks(sheet_name: str, counts: dict[str, int]) -> None:
-    profile = read_track_profile(require_legacy_workbook(), sheet_name)
+def test_reads_workbook_fixed_blocks(sheet_name: str, counts: dict[str, int]) -> None:
+    profile = read_track_profile(require_local_workbook(), sheet_name)
 
     assert len(profile.speed_limits) == counts["speed_limits"]
     assert len(profile.gradients) == counts["gradients"]
@@ -64,7 +64,7 @@ def test_reads_legacy_workbook_fixed_blocks(sheet_name: str, counts: dict[str, i
 
 def test_speed_override_preserves_rows_and_replaces_speed_values() -> None:
     profile = read_track_profile(
-        require_legacy_workbook(),
+        require_local_workbook(),
         "NyProfil",
         speed_override_kmh=40,
     )
@@ -74,7 +74,7 @@ def test_speed_override_preserves_rows_and_replaces_speed_values() -> None:
 
 
 def test_curve_radius_sentinel_becomes_infinity() -> None:
-    profile = read_track_profile(require_legacy_workbook(), "NyProfil")
+    profile = read_track_profile(require_local_workbook(), "NyProfil")
 
     assert any(math.isinf(curve.radius_m) for curve in profile.curves)
 

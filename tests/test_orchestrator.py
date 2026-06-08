@@ -21,12 +21,12 @@ from dragkraft.domain.track import (
 )
 from dragkraft.domain.train import TrainConfig
 from dragkraft.simulation.orchestrator import simulate_profile, simulate_workbook
-from dragkraft.vehicles.legacy_cases import default_nyprofil_scenario
+from dragkraft.vehicles.scenarios import default_scenario
 
 
 def test_simulate_profile_wires_envelope_acceleration_time_and_timing_points() -> None:
     settings = replace(
-        default_nyprofil_scenario(),
+        default_scenario(),
         flip_profiles=False,
         short_time_margin=1.0,
         use_distance_before_signal=False,
@@ -69,10 +69,10 @@ def test_simulate_profile_wires_envelope_acceleration_time_and_timing_points() -
 def test_simulate_workbook_reads_excel_contract_and_applies_scenario_settings(
     tmp_path: Path,
 ) -> None:
-    workbook_path = tmp_path / "legacy_contract.xlsx"
-    _write_legacy_contract_workbook(workbook_path)
+    workbook_path = tmp_path / "fixed_contract.xlsx"
+    _write_fixed_contract_workbook(workbook_path)
     settings = replace(
-        default_nyprofil_scenario(),
+        default_scenario(),
         sheet_name="NyProfil",
         speed_override_kmh=7.2,
         flip_profiles=False,
@@ -143,7 +143,7 @@ def _sample_train() -> TrainConfig:
     )
 
 
-def _write_legacy_contract_workbook(path: Path) -> None:
+def _write_fixed_contract_workbook(path: Path) -> None:
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = "NyProfil"

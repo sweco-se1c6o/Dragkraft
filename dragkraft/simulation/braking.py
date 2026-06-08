@@ -19,7 +19,7 @@ def braking_curve(
     max_deceleration_mps2: float,
     max_position_m: int,
 ) -> np.ndarray:
-    """Calculate a MATLAB-compatible backward braking curve."""
+    """Calculate a backward braking curve."""
     curve = np.full(int(max_position_m) + 1, np.inf, dtype=float)
     retardation = np.asarray(retardation_mps2, dtype=float)
     intervals = np.asarray(speed_intervals_mps, dtype=float)

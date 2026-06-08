@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 from dragkraft.domain.scenario import SimulationSettings
 from dragkraft.domain.train import TrainConfig
 from dragkraft.simulation.braking import braking_curve
-from dragkraft.simulation.profile import LegacyProfileVectors, build_sth_profile
+from dragkraft.simulation.profile import ProfileVectors, build_sth_profile
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class InitialSpeedEnvelope:
 
 def build_initial_speed_envelope(
     *,
-    vectors: LegacyProfileVectors,
+    vectors: ProfileVectors,
     train: TrainConfig,
     settings: SimulationSettings,
     equivalent_gradient: ArrayLike,
@@ -98,13 +98,13 @@ def _advance_offset_for_speed(
     if not settings.use_tav_distance:
         return -400
     if target_speed_mps < settings.switch_speed_mps:
-        return -_legacy_round(target_speed_mps * settings.freight_signal_advance_s_per_mps)
-    return -_legacy_round(
+        return -_round_position(target_speed_mps * settings.freight_signal_advance_s_per_mps)
+    return -_round_position(
         target_speed_mps * settings.freight_signal_advance2_s_per_mps
         + settings.freight_signal_advance2_m
     )
 
 
-def _legacy_round(value: float) -> int:
+def _round_position(value: float) -> int:
     numeric = float(value)
     return int(np.sign(numeric) * np.floor(abs(numeric) + 0.5 + 1e-9))

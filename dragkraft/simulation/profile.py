@@ -6,12 +6,12 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from dragkraft.domain.track import TrackProfile
-from dragkraft.units import km_to_legacy_meters, kmh_to_mps, promille_to_slope
+from dragkraft.units import km_to_meters, kmh_to_mps, promille_to_slope
 
 
 @dataclass(frozen=True)
-class LegacyProfileVectors:
-    """Meter-based route vectors using the legacy MATLAB coordinate convention."""
+class ProfileVectors:
+    """Meter-based route vectors using an integer-meter coordinate convention."""
 
     origin_km: float
     max_position_m: int
@@ -35,14 +35,14 @@ class LegacyProfileVectors:
     signal_setting_times_s: np.ndarray
 
 
-def build_legacy_profile_vectors(
+def build_profile_vectors(
     profile: TrackProfile,
     *,
     flip: bool,
-) -> LegacyProfileVectors:
+) -> ProfileVectors:
     """Convert a workbook profile into the meter vectors used by the kernels."""
     origin_km = profile.speed_limits[0].from_km
-    speed_positions = km_to_legacy_meters(
+    speed_positions = km_to_meters(
         [(segment.from_km, segment.to_km) for segment in profile.speed_limits],
         origin_km=origin_km,
     )
@@ -53,7 +53,7 @@ def build_legacy_profile_vectors(
     )
 
     gradient_origin_km = profile.gradients[0].from_km
-    gradient_positions = km_to_legacy_meters(
+    gradient_positions = km_to_meters(
         [segment.from_km for segment in profile.gradients]
         + [profile.gradients[-1].to_km],
         origin_km=gradient_origin_km,
@@ -64,7 +64,7 @@ def build_legacy_profile_vectors(
     )
 
     curve_origin_km = profile.curves[0].from_km
-    curve_positions = km_to_legacy_meters(
+    curve_positions = km_to_meters(
         [segment.from_km for segment in profile.curves] + [profile.curves[-1].to_km],
         origin_km=curve_origin_km,
     )
@@ -73,7 +73,7 @@ def build_legacy_profile_vectors(
         dtype=float,
     )
 
-    tunnel_positions = km_to_legacy_meters(
+    tunnel_positions = km_to_meters(
         [(segment.from_km, segment.to_km) for segment in profile.tunnels],
         origin_km=origin_km,
     )
@@ -83,7 +83,7 @@ def build_legacy_profile_vectors(
     )
     tunnel_rows = np.column_stack((tunnel_positions, tunnel_factors))
 
-    vectors = LegacyProfileVectors(
+    vectors = ProfileVectors(
         origin_km=origin_km,
         max_position_m=max_position,
         speed_limit_positions_m=speed_positions,
@@ -91,12 +91,12 @@ def build_legacy_profile_vectors(
         gradient_positions_m=gradient_positions,
         gradient_slopes=gradient_slopes,
         tunnel_rows_m=tunnel_rows,
-        timing_point_positions_m=km_to_legacy_meters(
+        timing_point_positions_m=km_to_meters(
             [point.position_km for point in profile.timing_points],
             origin_km=origin_km,
         ),
         timing_point_names=tuple(point.name for point in profile.timing_points),
-        stop_positions_m=km_to_legacy_meters(
+        stop_positions_m=km_to_meters(
             [stop.position_km for stop in profile.stops],
             origin_km=origin_km,
         ),
@@ -107,7 +107,7 @@ def build_legacy_profile_vectors(
         ),
         curve_positions_m=curve_positions,
         curve_radii_m=curve_radii,
-        signal_positions_m=km_to_legacy_meters(
+        signal_positions_m=km_to_meters(
             [signal.position_km for signal in profile.signals],
             origin_km=origin_km,
         ),
@@ -130,18 +130,18 @@ def build_legacy_profile_vectors(
         ),
     )
     if flip:
-        return _flip_legacy_profile_vectors(vectors)
+        return _flip_profile_vectors(vectors)
     return vectors
 
 
-def _flip_legacy_profile_vectors(vectors: LegacyProfileVectors) -> LegacyProfileVectors:
+def _flip_profile_vectors(vectors: ProfileVectors) -> ProfileVectors:
     max_position = vectors.max_position_m
     tunnel_positions = np.flip(
         max_position - vectors.tunnel_rows_m[:, :2],
         axis=(0, 1),
     )
     tunnel_rows = np.column_stack((tunnel_positions, vectors.tunnel_rows_m[:, 2][::-1]))
-    return LegacyProfileVectors(
+    return ProfileVectors(
         origin_km=vectors.origin_km,
         max_position_m=max_position,
         speed_limit_positions_m=np.flip(
@@ -171,7 +171,7 @@ def _flip_legacy_profile_vectors(vectors: LegacyProfileVectors) -> LegacyProfile
 
 
 def build_sth_profile(*, speeds_mps: ArrayLike, positions_m: ArrayLike) -> np.ndarray:
-    """Build the base STH row using MATLAB's position-slice convention."""
+    """Build the base STH row using the position-slice convention."""
     speeds = np.asarray(speeds_mps, dtype=float)
     positions = np.asarray(positions_m, dtype=int)
     max_position = int(np.max(positions))
@@ -182,7 +182,7 @@ def build_sth_profile(*, speeds_mps: ArrayLike, positions_m: ArrayLike) -> np.nd
 
 
 def build_tunnel_factor(*, tunnel_rows_m: ArrayLike, max_position_m: int) -> np.ndarray:
-    """Build a padded tunnel-factor vector from rounded legacy meter rows."""
+    """Build a padded tunnel-factor vector from rounded meter rows."""
     rows = np.asarray(tunnel_rows_m, dtype=float)
     factors = np.zeros(int(max_position_m) + 1, dtype=float)
     for start, end, factor in rows:

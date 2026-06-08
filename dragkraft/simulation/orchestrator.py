@@ -55,7 +55,7 @@ def simulate_profile(
     )
     acceleration_envelope = initial.speed_envelope_mps.copy()
     acceleration_envelope[route.vectors.stop_positions_m.astype(int)] = 0.0
-    acceleration = forward_acceleration_profile(
+    forward = forward_acceleration_profile(
         start_position_m=1,
         start_speed_mps=min(
             acceleration_envelope[1],
@@ -66,12 +66,18 @@ def simulate_profile(
         vehicle_max_speed_mps=train.vehicle_max_speed_mps,
         acceleration_at=build_acceleration_callback(route=route, train=train),
     )
+    acceleration = forward.profile
+    stall = forward.stall
     running_speed = np.minimum(
         np.minimum(initial.speed_envelope_mps, acceleration),
         train.vehicle_max_speed_mps,
     )
     running_speed = running_speed / settings.short_time_margin
     running_speed[0] = np.inf
+    if stall is not None:
+        # The train never travels past the stall; zero everything beyond so the
+        # time integral plateaus and the profiles end cleanly at that position.
+        running_speed[stall.position_m + 1 :] = 0.0
 
     time_s_per_m = np.zeros_like(running_speed)
     active = np.isfinite(running_speed) & (running_speed > 0)
@@ -86,6 +92,7 @@ def simulate_profile(
     cumulative_time = np.cumsum(time_s_per_m) + settings.time_offset_s
     speed_profile = running_speed.copy()
     speed_profile[route.vectors.stop_positions_m.astype(int)] = 0.0
+    reached_position_m = route.vectors.max_position_m if stall is None else stall.position_m
     timing_passages = tuple(
         TimingPassage(
             position_m=int(position),
@@ -97,14 +104,23 @@ def simulate_profile(
             route.vectors.timing_point_names,
             strict=True,
         )
+        if int(position) <= reached_position_m
     )
+    signal_positions = route.vectors.signal_positions_m.astype(int)
+    reached_signals = signal_positions <= reached_position_m
     blocks = block_occupation(
-        signal_positions_m=route.vectors.signal_positions_m,
-        signal_names=route.vectors.signal_names,
-        release_speeds_mps=route.vectors.signal_release_speeds_mps,
-        overlaps_m=route.vectors.signal_overlaps_m,
-        release_times_s=route.vectors.signal_release_times_s,
-        setting_times_s=route.vectors.signal_setting_times_s,
+        signal_positions_m=signal_positions[reached_signals],
+        signal_names=tuple(
+            name
+            for name, keep in zip(
+                route.vectors.signal_names, reached_signals, strict=True
+            )
+            if keep
+        ),
+        release_speeds_mps=route.vectors.signal_release_speeds_mps[reached_signals],
+        overlaps_m=route.vectors.signal_overlaps_m[reached_signals],
+        release_times_s=route.vectors.signal_release_times_s[reached_signals],
+        setting_times_s=route.vectors.signal_setting_times_s[reached_signals],
         speed_profile_mps=speed_profile,
         cumulative_time_s=cumulative_time,
         retardation_mps2=train.braking_decelerations_mps2,
@@ -127,4 +143,5 @@ def simulate_profile(
         cumulative_time_s=cumulative_time,
         timing_passages=timing_passages,
         block_occupation=blocks,
+        stall=stall,
     )

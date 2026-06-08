@@ -13,7 +13,7 @@ def equivalent_gradient(
     x_positions_m: ArrayLike,
     train_length_m: float,
 ) -> np.ndarray:
-    """Calculate MATLAB-compatible train-length-aware equivalent gradients."""
+    """Calculate train-length-aware equivalent gradients."""
     boundaries = np.asarray(boundaries_m, dtype=float)
     gradient_values = np.asarray(gradients, dtype=float)
     positions = np.asarray(x_positions_m, dtype=float)

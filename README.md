@@ -1,39 +1,36 @@
 # Dragkraft
 
-Python refactor of a legacy MATLAB train performance simulation for Dragkraft.
+Dragkraft is a train performance simulation. It reads a track profile from an
+Excel workbook, integrates train motion at one-meter resolution under traction,
+adhesion, resistance, gradient, tunnel, and curve constraints, and reports
+travel times, timing-point passages, and signal/block occupation. Results can be
+written to CSV/JSON or explored interactively in a Dash dashboard.
 
-The goal is numerical parity with the MATLAB implementation while preserving the existing Excel input contract exactly. The current Python code can run the default legacy `NyProfil` scenario, write CSV/JSON outputs, and compare that run against captured MATLAB baseline fixtures.
+## Features
 
-## Current Status
-
-Implemented:
-
-- Fixed-layout Excel reader for the legacy workbook sheets.
+- Fixed-layout Excel reader for the workbook track sheets.
 - Unit conversion helpers for speed, gradient, and rounded meter positions.
 - Base STH profile and tunnel-factor vector helpers.
 - Equivalent-gradient and curve-resistance kernels.
-- Backward braking curve kernel shared by `dec.m` and `decMB.m`.
-- Acceleration force helpers from `acc3.m`.
-- Forward acceleration stepping loop.
-- Active legacy freight train and default `NyProfil` scenario config.
+- Backward braking curve kernel.
+- Acceleration force helpers (traction, adhesion, resistance) and the forward
+  per-meter acceleration loop.
+- Standard freight train and a default `NyProfil` scenario configuration.
 - Initial speed-envelope builder for STH transitions and stops.
 - Route preparation for tunnel, equivalent-gradient, and curve-resistance vectors.
-- Acceleration callback wiring traction, adhesion, resistance, gradient, tunnel, and curve terms.
-- Pure signal/block occupation kernel for MB braking curves, booking, arrival, and release times.
-- Simulation result includes timing-point passages and signal/block occupation rows.
-- CSV/JSON output writer for summary, timing points, block occupation, and speed profile.
-- CLI entrypoint for running a workbook and writing outputs.
-- MATLAB baseline fixtures for the default `NyProfil` scenario.
-- End-to-end parity test for default `NyProfil` timing, speed, gradient, curve force, and block occupation.
-
-Still pending:
-
-- Additional scenario parity coverage beyond the default `NyProfil` case.
-- Optional plotting/reporting polish.
+- Pure signal/block occupation kernel for braking curves, booking, arrival, and
+  release times.
+- Simulation results include timing-point passages and signal/block occupation.
+- Graceful handling of an over-heavy consist: the run returns a partial result
+  up to the stall position instead of failing.
+- CSV/JSON output writer for summary, timing points, block occupation, and the
+  speed profile.
+- CLI for running a workbook and a Dash dashboard for interactive runs and
+  scenario comparison.
 
 ## Excel Input Contract
 
-The reader preserves the legacy workbook layout:
+The reader expects a fixed workbook layout:
 
 - Sheets: `DagensProfil`, `NyProfil`, `SpeedTest`.
 - Headers on row 4.
@@ -48,7 +45,10 @@ The reader preserves the legacy workbook layout:
   - `Y:AA`: curves
   - `AD:AI`: signal/block data
 
-Workbook distances are in kilometers and converted to rounded meter positions. Speeds are converted from km/h to m/s. Gradients are converted from promille to dimensionless slope. Curve radius `99999` means straight track and is converted to infinity.
+Workbook distances are in kilometers and converted to rounded meter positions.
+Speeds are converted from km/h to m/s. Gradients are converted from promille to
+dimensionless slope. Curve radius `99999` means straight track and is converted
+to infinity.
 
 ## Repository Layout
 
@@ -63,6 +63,7 @@ dragkraft/
     track.py
     train.py
     scenario.py
+    result.py
   simulation/
     acceleration.py
     blocks.py
@@ -72,14 +73,18 @@ dragkraft/
     profile.py
     route.py
     resistance.py
+  dashboard/
+    app.py
+    callbacks.py
+    figures.py
+    forms.py
+    results.py
+    uploads.py
   units.py
   vehicles/
-    legacy_cases.py
+    scenarios.py
 tests/
-docs/tools/
 ```
-
-The legacy MATLAB files and workbook are kept locally in `old/`, but that folder is intentionally Git-ignored.
 
 ## Setup
 
@@ -90,7 +95,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install development dependencies using the trusted-host configuration in `requirements-dev.txt`:
+Install development dependencies (the trusted-host flags in
+`requirements-dev.txt` are needed behind a TLS-intercepting proxy):
 
 ```powershell
 python -m pip install -r requirements-dev.txt
@@ -104,26 +110,23 @@ Run the full test suite:
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
-Some Excel-reader tests use the local legacy workbook at `old/luleaHamn3.xlsx`. If that local-only workbook is absent, those tests are skipped.
-
-The default `NyProfil` parity test uses tracked MATLAB baseline CSV fixtures under `tests/fixtures/matlab_nyprofil_default/`. Re-export them with MATLAB when the legacy reference changes. First prepare a temp legacy run directory with an `xlsread` shim, then run the MATLAB command printed by the script:
-
-```powershell
-.\.venv\Scripts\python.exe tools\prepare_matlab_baseline_run.py
-```
+Some tests use a local workbook at `old/luleaHamn3.xlsx`. If that local-only
+workbook is absent, those tests are skipped. The default `NyProfil` end-to-end
+test compares against tracked baseline CSV fixtures under
+`tests/fixtures/default_scenario/`.
 
 ## CLI
 
-Run the default legacy-style scenario and write CSV/JSON outputs:
+Run the default scenario and write CSV/JSON outputs:
 
 ```powershell
-.\.venv\Scripts\python.exe -m dragkraft run old/luleaHamn3.xlsx --sheet NyProfil --train legacy-freight-20 --max-speed-kmh 40 --flip --out runs/nyprofil
+.\.venv\Scripts\python.exe -m dragkraft run old/luleaHamn3.xlsx --sheet NyProfil --train freight --max-speed-kmh 40 --flip --out runs/nyprofil
 ```
 
-## Development Notes
+Launch the interactive dashboard:
 
-- Preserve the Excel workbook layout exactly.
-- Keep `old/` unchanged and local-only.
-- Prefer pure numerical functions with tests before adding orchestration.
-- Preserve MATLAB one-meter indexing behavior during parity work.
-- Do not treat this refactor as complete until Python reproduces the MATLAB baseline for the default `NyProfil` scenario within agreed tolerances.
+```powershell
+.\.venv\Scripts\python.exe -m dragkraft dashboard
+```
+
+Then open http://127.0.0.1:8050 in a browser.

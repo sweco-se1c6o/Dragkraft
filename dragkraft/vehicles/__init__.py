@@ -1,6 +1,6 @@
-from dragkraft.vehicles.legacy_cases import (
-    default_nyprofil_scenario,
-    legacy_freight_20,
+from dragkraft.vehicles.scenarios import (
+    default_scenario,
+    freight_train,
 )
 
-__all__ = ["default_nyprofil_scenario", "legacy_freight_20"]
+__all__ = ["default_scenario", "freight_train"]

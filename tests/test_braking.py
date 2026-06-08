@@ -23,7 +23,7 @@ def test_braking_curve_writes_zero_speed_position_as_half_step_speed() -> None:
     assert result[4] == pytest.approx((2 * 0.2) ** 0.5 / 2)
 
 
-def test_braking_curve_uses_legacy_max_speed_plus_one_loop_limit() -> None:
+def test_braking_curve_uses_max_speed_plus_one_loop_limit() -> None:
     result = braking_curve(
         target_position_m=4,
         start_offset_m=0,

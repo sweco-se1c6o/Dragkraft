@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 
 from dragkraft.simulation.envelope import build_initial_speed_envelope
-from dragkraft.simulation.profile import LegacyProfileVectors
-from dragkraft.vehicles.legacy_cases import default_nyprofil_scenario, legacy_freight_20
+from dragkraft.simulation.profile import ProfileVectors
+from dragkraft.vehicles.scenarios import default_scenario, freight_train
 
 
 def test_build_initial_speed_envelope_combines_sth_transition_and_stop_rows() -> None:
     vectors = _sample_vectors()
     train = replace(
-        legacy_freight_20(extra_wagons=21),
+        freight_train(extra_wagons=21),
         train_length_m=3.0,
         braking_speed_intervals_mps=np.array([[0.0, 100.0]]),
         braking_decelerations_mps2=np.array([0.5]),
@@ -21,7 +21,7 @@ def test_build_initial_speed_envelope_combines_sth_transition_and_stop_rows() ->
         max_deceleration_mps2=1.0,
     )
     settings = replace(
-        default_nyprofil_scenario(),
+        default_scenario(),
         freight_signal_advance_s_per_mps=2.0,
         switch_speed_mps=10.0,
     )
@@ -46,8 +46,8 @@ def test_build_initial_speed_envelope_combines_sth_transition_and_stop_rows() ->
     assert result.speed_envelope_mps[55] == pytest.approx(0.5)
 
 
-def _sample_vectors() -> LegacyProfileVectors:
-    return LegacyProfileVectors(
+def _sample_vectors() -> ProfileVectors:
+    return ProfileVectors(
         origin_km=10.0,
         max_position_m=60,
         speed_limit_positions_m=np.array([[0, 20], [20, 50], [50, 60]]),

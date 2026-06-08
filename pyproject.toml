@@ -5,14 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dragkraft"
 version = "0.1.0"
-description = "Python refactor of the legacy MATLAB Dragkraft train simulation."
+description = "Dragkraft train performance simulation."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "dash",
   "matplotlib",
   "numpy",
   "openpyxl",
   "pandas",
+  "plotly",
 ]
 
 [project.optional-dependencies]

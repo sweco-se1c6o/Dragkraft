@@ -3,16 +3,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from dragkraft.vehicles.legacy_cases import (
-    default_nyprofil_scenario,
-    legacy_freight_20,
+from dragkraft.vehicles.scenarios import (
+    default_scenario,
+    freight_train,
 )
 
 
-def test_legacy_freight_20_matches_active_dragkraft_train_block() -> None:
-    train = legacy_freight_20(extra_wagons=21)
+def test_freight_train_matches_expected_consist_block() -> None:
+    train = freight_train(extra_wagons=21)
 
-    assert train.name == "legacy-freight-20"
+    assert train.name == "freight"
     assert train.locomotive_count == 1
     assert train.locomotive_mass_kg == pytest.approx(76_000.0)
     assert train.extra_wagon_count == 21
@@ -41,8 +41,8 @@ def test_legacy_freight_20_matches_active_dragkraft_train_block() -> None:
     assert train.vehicle_max_speed_mps == pytest.approx(60.0 / 3.6)
 
 
-def test_legacy_freight_20_calculates_type2_traction_arrays() -> None:
-    train = legacy_freight_20(extra_wagons=21)
+def test_freight_train_calculates_type2_traction_arrays() -> None:
+    train = freight_train(extra_wagons=21)
 
     speed_points = np.array([0.0, 67.0, 78.0, 100.0, 140.0]) / 3.6
     force_points = 2 * np.array([273.0, 188.0, 183.0, 176.0, 144.0]) * 1000.0
@@ -62,8 +62,8 @@ def test_legacy_freight_20_calculates_type2_traction_arrays() -> None:
     np.testing.assert_allclose(train.traction_intercepts_n, expected_intercepts)
 
 
-def test_legacy_freight_20_uses_signal_braking_table_as_active_retardation() -> None:
-    train = legacy_freight_20(extra_wagons=21)
+def test_freight_train_uses_signal_braking_table_as_active_retardation() -> None:
+    train = freight_train(extra_wagons=21)
 
     expected_intervals = np.column_stack(
         (np.arange(0.0, 200.0, 10.0), np.arange(10.0, 210.0, 10.0))
@@ -99,12 +99,12 @@ def test_legacy_freight_20_uses_signal_braking_table_as_active_retardation() -> 
     np.testing.assert_allclose(train.braking_decelerations_mps2, expected_deceleration)
 
 
-def test_default_nyprofil_scenario_matches_active_dragkraft_settings() -> None:
-    scenario = default_nyprofil_scenario()
+def test_default_scenario_matches_expected_settings() -> None:
+    scenario = default_scenario()
 
     assert scenario.workbook_name == "luleaHamn3.xlsx"
     assert scenario.sheet_name == "NyProfil"
-    assert scenario.train_name == "legacy-freight-20"
+    assert scenario.train_name == "freight"
     assert scenario.extra_wagon_count == 21
     assert scenario.speed_override_kmh == pytest.approx(40.0)
     assert scenario.flip_profiles is True

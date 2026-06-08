@@ -46,7 +46,7 @@ def test_type2_traction_uses_active_linear_interval_and_last_interval_at_cap() -
     assert traction_force_type2(25.0, aa, bb, intervals) == pytest.approx(25.0)
 
 
-def test_adhesion_limited_force_applies_acc3_formula() -> None:
+def test_adhesion_limited_force_applies_2022_formula() -> None:
     force = adhesion_limited_force(
         requested_force_n=10_000.0,
         speed_mps=2.0,
@@ -58,7 +58,7 @@ def test_adhesion_limited_force_applies_acc3_formula() -> None:
     assert force == pytest.approx(min(10_000.0, expected_limit))
 
 
-def test_net_force_resistance_type1_matches_acc3_davis_formula() -> None:
+def test_net_force_resistance_type1_matches_davis_formula() -> None:
     force = net_force(
         traction_force_n=1000.0,
         speed_mps=2.0,
@@ -83,7 +83,7 @@ def test_net_force_resistance_type1_matches_acc3_davis_formula() -> None:
     assert force == pytest.approx(expected)
 
 
-def test_net_force_resistance_type2_matches_acc3_strahl_formula() -> None:
+def test_net_force_resistance_type2_matches_strahl_formula() -> None:
     force = net_force(
         traction_force_n=1000.0,
         speed_mps=2.0,
@@ -108,7 +108,7 @@ def test_net_force_resistance_type2_matches_acc3_strahl_formula() -> None:
     assert force == pytest.approx(expected)
 
 
-def test_net_force_resistance_type3_matches_acc3_mixed_formula() -> None:
+def test_net_force_resistance_type3_matches_mixed_formula() -> None:
     force = net_force(
         traction_force_n=1000.0,
         speed_mps=2.0,
@@ -155,8 +155,9 @@ def test_forward_acceleration_profile_writes_zero_speed_half_step_then_average_s
         acceleration_at=lambda position, speed: 1.0,
     )
 
-    assert result[1] == pytest.approx(2**0.5 / 2)
-    assert result[2] == pytest.approx(2**0.5 / 2)
+    assert result.stall is None
+    assert result.profile[1] == pytest.approx(2**0.5 / 2)
+    assert result.profile[2] == pytest.approx(2**0.5 / 2)
 
 
 def test_forward_acceleration_profile_uses_speed_envelope_for_next_step() -> None:
@@ -172,4 +173,23 @@ def test_forward_acceleration_profile_uses_speed_envelope_for_next_step() -> Non
         acceleration_at=lambda position, speed: 1.0,
     )
 
-    assert result[3] == pytest.approx(1.0)
+    assert result.profile[3] == pytest.approx(1.0)
+
+
+def test_forward_acceleration_profile_reports_partial_profile_when_train_stalls() -> None:
+    result = forward_acceleration_profile(
+        start_position_m=1,
+        start_speed_mps=0.2,
+        max_position_m=3,
+        speed_envelope_mps=np.full(4, np.inf),
+        vehicle_max_speed_mps=np.inf,
+        acceleration_at=lambda position, speed: -0.1,
+    )
+
+    assert result.stall is not None
+    assert result.stall.position_m == 1
+    assert result.stall.speed_mps == pytest.approx(0.2)
+    # The reached position keeps its speed; everything beyond stays unfilled.
+    assert result.profile[1] == pytest.approx(0.2)
+    assert not np.isfinite(result.profile[2])
+    assert "Train stalled at position 1 m" in result.stall.describe()

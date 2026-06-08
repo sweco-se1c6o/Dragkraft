@@ -1,29 +1,30 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from dragkraft.simulation.orchestrator import simulate_workbook
-from dragkraft.vehicles.legacy_cases import default_nyprofil_scenario, legacy_freight_20
+from dragkraft.vehicles.scenarios import default_scenario, freight_train
 
 
-LEGACY_WORKBOOK = Path(__file__).resolve().parents[1] / "old" / "luleaHamn3.xlsx"
+LOCAL_WORKBOOK = Path(__file__).resolve().parents[1] / "old" / "luleaHamn3.xlsx"
 BASELINE_DIR = (
-    Path(__file__).resolve().parent / "fixtures" / "matlab_nyprofil_default"
+    Path(__file__).resolve().parent / "fixtures" / "default_scenario"
 )
 
 
-def test_default_nyprofil_matches_matlab_baseline() -> None:
-    if not LEGACY_WORKBOOK.exists():
-        pytest.skip("legacy workbook is local-only because old/ is git-ignored")
+def test_default_scenario_matches_baseline() -> None:
+    if not LOCAL_WORKBOOK.exists():
+        pytest.skip("reference workbook is local-only because old/ is git-ignored")
 
     result = simulate_workbook(
-        workbook_path=LEGACY_WORKBOOK,
-        train=legacy_freight_20(),
-        settings=default_nyprofil_scenario(),
+        workbook_path=LOCAL_WORKBOOK,
+        train=freight_train(),
+        settings=default_scenario(),
     )
     summary = _read_summary(BASELINE_DIR / "summary.csv")
     timing_points = _read_rows(BASELINE_DIR / "timing_points.csv")
@@ -94,6 +95,35 @@ def test_default_nyprofil_matches_matlab_baseline() -> None:
         result.route.curve_resistance_n[1:],
         expected_curve_force,
         atol=1e-9,
+    )
+
+
+def test_overheavy_consist_returns_partial_result_with_stall() -> None:
+    if not LOCAL_WORKBOOK.exists():
+        pytest.skip("reference workbook is local-only because old/ is git-ignored")
+
+    settings = replace(default_scenario(), extra_wagon_count=30)
+    train = freight_train(extra_wagons=30)
+
+    result = simulate_workbook(
+        workbook_path=LOCAL_WORKBOOK,
+        train=train,
+        settings=settings,
+    )
+
+    # The 30-wagon consist stalls on the grade rather than raising or producing nan.
+    assert result.stall is not None
+    assert result.stall.position_m == 2581
+    # The partial profile is finite up to the stall and zeroed beyond it.
+    stall_pos = result.stall.position_m
+    assert np.all(np.isfinite(result.cumulative_time_s))
+    assert np.isfinite(result.speed_profile_mps[stall_pos])
+    assert np.all(result.speed_profile_mps[stall_pos + 1 :] == 0.0)
+    # Only infrastructure actually reached is reported.
+    assert all(p.position_m <= stall_pos for p in result.timing_passages)
+    assert all(
+        b.signal_position_m <= stall_pos
+        for b in result.block_occupation.occupations
     )
 
 

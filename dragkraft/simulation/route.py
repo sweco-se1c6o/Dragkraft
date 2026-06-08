@@ -15,8 +15,8 @@ from dragkraft.simulation.acceleration import (
     traction_force_type2,
 )
 from dragkraft.simulation.profile import (
-    LegacyProfileVectors,
-    build_legacy_profile_vectors,
+    ProfileVectors,
+    build_profile_vectors,
     build_tunnel_factor,
 )
 from dragkraft.simulation.resistance import curve_resistance, equivalent_gradient
@@ -24,7 +24,7 @@ from dragkraft.simulation.resistance import curve_resistance, equivalent_gradien
 
 @dataclass(frozen=True)
 class PreparedRoute:
-    vectors: LegacyProfileVectors
+    vectors: ProfileVectors
     x_positions_m: np.ndarray
     tunnel_factor: np.ndarray
     equivalent_gradient: np.ndarray
@@ -37,7 +37,7 @@ def prepare_route_vectors(
     train: TrainConfig,
     flip: bool,
 ) -> PreparedRoute:
-    vectors = build_legacy_profile_vectors(profile, flip=flip)
+    vectors = build_profile_vectors(profile, flip=flip)
     x_positions_m = np.arange(vectors.max_position_m + 1, dtype=int)
     tunnel_factor = build_tunnel_factor(
         tunnel_rows_m=vectors.tunnel_rows_m,

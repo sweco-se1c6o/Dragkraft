@@ -6,8 +6,8 @@ from dragkraft.domain.scenario import SimulationSettings
 from dragkraft.domain.train import TrainConfig
 
 
-def legacy_freight_20(*, extra_wagons: int = 21) -> TrainConfig:
-    """Active freight train block from the top of legacy dragkraft.m."""
+def freight_train(*, extra_wagons: int = 21) -> TrainConfig:
+    """Standard freight train consist definition."""
     locomotive_count = 1
     locomotive_mass_kg = locomotive_count * 76e3
     wagon_mass_kg = int(extra_wagons) * 84e3
@@ -60,7 +60,7 @@ def legacy_freight_20(*, extra_wagons: int = 21) -> TrainConfig:
     ) / 100.0
 
     return TrainConfig(
-        name="legacy-freight-20",
+        name="freight",
         locomotive_count=locomotive_count,
         locomotive_mass_kg=locomotive_mass_kg,
         extra_wagon_count=int(extra_wagons),
@@ -96,12 +96,12 @@ def legacy_freight_20(*, extra_wagons: int = 21) -> TrainConfig:
     )
 
 
-def default_nyprofil_scenario() -> SimulationSettings:
-    """Default scenario constants from the active legacy dragkraft.m branch."""
+def default_scenario() -> SimulationSettings:
+    """Default simulation scenario constants."""
     return SimulationSettings(
         workbook_name="luleaHamn3.xlsx",
         sheet_name="NyProfil",
-        train_name="legacy-freight-20",
+        train_name="freight",
         extra_wagon_count=21,
         speed_override_kmh=40.0,
         flip_profiles=True,

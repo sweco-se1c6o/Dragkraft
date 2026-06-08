@@ -26,11 +26,11 @@ STRAIGHT_RADIUS_SENTINEL = 99999
 
 
 class FormulaCacheError(ValueError):
-    """Raised when a formula cell needed by the legacy contract has no value."""
+    """Raised when a formula cell needed by the fixed contract has no value."""
 
 
 class ExcelContractError(ValueError):
-    """Raised when workbook contents do not satisfy the legacy fixed layout."""
+    """Raised when workbook contents do not satisfy the fixed layout."""
 
 
 def read_track_profile(
@@ -39,7 +39,7 @@ def read_track_profile(
     *,
     speed_override_kmh: float | None = None,
 ) -> TrackProfile:
-    """Read one legacy Dragkraft worksheet without changing its Excel contract."""
+    """Read one Dragkraft worksheet without changing its Excel contract."""
     workbook_path = Path(workbook_path)
     values_workbook = load_workbook(workbook_path, data_only=True, read_only=True)
     formulas_workbook = load_workbook(workbook_path, data_only=False, read_only=True)

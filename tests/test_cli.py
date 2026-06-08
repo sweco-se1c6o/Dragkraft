@@ -8,8 +8,8 @@ from openpyxl import Workbook
 from dragkraft.cli import main
 
 
-def test_cli_run_writes_outputs_for_legacy_contract_workbook(tmp_path: Path) -> None:
-    workbook_path = tmp_path / "legacy_contract.xlsx"
+def test_cli_run_writes_outputs_for_fixed_contract_workbook(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "fixed_contract.xlsx"
     output_dir = tmp_path / "out"
     _write_workbook(workbook_path)
 
@@ -20,7 +20,7 @@ def test_cli_run_writes_outputs_for_legacy_contract_workbook(tmp_path: Path) -> 
             "--sheet",
             "NyProfil",
             "--train",
-            "legacy-freight-20",
+            "freight",
             "--extra-wagons",
             "0",
             "--max-speed-kmh",

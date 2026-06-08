@@ -1,9 +1,34 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike
+
+
+@dataclass(frozen=True)
+class StallPoint:
+    """Where available traction could no longer keep the train moving."""
+
+    position_m: int
+    speed_mps: float
+    acceleration_mps2: float
+
+    def describe(self) -> str:
+        return (
+            f"Train stalled at position {self.position_m} m: "
+            f"speed={self.speed_mps:.4f} m/s, "
+            f"acceleration={self.acceleration_mps2:.4f} m/s^2"
+        )
+
+
+@dataclass(frozen=True)
+class ForwardAccelerationResult:
+    """Partial acceleration profile plus the stall point, if the train stalled."""
+
+    profile: np.ndarray
+    stall: StallPoint | None = None
 
 
 def traction_force_type1(
@@ -14,7 +39,7 @@ def traction_force_type1(
     start_force_n: float,
     start_force_max_speed_mps: float,
 ) -> float:
-    """Calculate acc3 traction model type 1 force."""
+    """Calculate traction model type 1 force."""
     speed = float(speed_mps)
     if speed == 0:
         force = float(max_force_n)
@@ -33,7 +58,7 @@ def traction_force_type2(
     bb: ArrayLike,
     speed_intervals_mps: ArrayLike,
 ) -> float:
-    """Calculate acc3 traction model type 2 piecewise-linear force."""
+    """Calculate traction model type 2 piecewise-linear force."""
     speed = float(speed_mps)
     intercepts = np.asarray(aa, dtype=float)
     slopes = np.asarray(bb, dtype=float)
@@ -54,7 +79,7 @@ def adhesion_limited_force(
     adhesion_coefficient: float,
     adhesion_mass_kg: float,
 ) -> float:
-    """Apply acc3's 2022 adhesion limit formula."""
+    """Apply the 2022 adhesion limit formula."""
     limit = (
         2.1 / (float(speed_mps) + 12.2) + 0.161
     ) * float(adhesion_coefficient) * float(adhesion_mass_kg) * 9.81
@@ -78,7 +103,7 @@ def net_force(
     wagon_count: int,
     locomotive_mass_kg: float,
 ) -> float:
-    """Calculate net force using one of acc3's active resistance branches."""
+    """Calculate net force using one of the active resistance branches."""
     del dynamic_mass_kg
     speed = float(speed_mps)
     train_mass = float(train_mass_kg)
@@ -132,8 +157,13 @@ def forward_acceleration_profile(
     speed_envelope_mps: ArrayLike,
     vehicle_max_speed_mps: float,
     acceleration_at: Callable[[int, float], float],
-) -> np.ndarray:
-    """Run acc3's forward per-meter integration loop with pure inputs."""
+) -> ForwardAccelerationResult:
+    """Run the forward per-meter integration loop with pure inputs.
+
+    Stops integrating and reports a :class:`StallPoint` if the train can no
+    longer keep moving (heavy consist on a grade), so callers can still use the
+    partial profile up to that position instead of producing ``nan`` speeds.
+    """
     max_position = int(max_position_m)
     profile = np.full(max_position + 1, np.inf, dtype=float)
     envelope = np.asarray(speed_envelope_mps, dtype=float)
@@ -144,13 +174,32 @@ def forward_acceleration_profile(
     while position <= max_position:
         acceleration = float(acceleration_at(position, speed))
         if speed == 0:
+            if acceleration < 0:
+                return ForwardAccelerationResult(
+                    profile=profile,
+                    stall=StallPoint(
+                        position_m=position,
+                        speed_mps=speed,
+                        acceleration_mps2=acceleration,
+                    ),
+                )
             profile[position] = np.sqrt(2.0 * acceleration) / 2.0
         else:
             profile[position] = average_speed
 
         position += 1
         if position <= max_position:
-            next_speed = np.sqrt(2.0 * acceleration + speed**2)
+            radicand = 2.0 * acceleration + speed**2
+            if radicand < 0:
+                return ForwardAccelerationResult(
+                    profile=profile,
+                    stall=StallPoint(
+                        position_m=position - 1,
+                        speed_mps=speed,
+                        acceleration_mps2=acceleration,
+                    ),
+                )
+            next_speed = np.sqrt(radicand)
             average_speed = (speed + next_speed) / 2.0
             speed = min(
                 speed + acceleration / average_speed,
@@ -158,4 +207,4 @@ def forward_acceleration_profile(
                 float(vehicle_max_speed_mps),
             )
 
-    return profile
+    return ForwardAccelerationResult(profile=profile)

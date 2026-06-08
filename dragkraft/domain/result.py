@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from dragkraft.simulation.acceleration import StallPoint
 from dragkraft.simulation.envelope import InitialSpeedEnvelope
 from dragkraft.simulation.route import PreparedRoute
 
@@ -43,3 +44,4 @@ class SimulationResult:
     cumulative_time_s: np.ndarray
     timing_passages: tuple[TimingPassage, ...]
     block_occupation: BlockOccupationResult
+    stall: StallPoint | None = None
