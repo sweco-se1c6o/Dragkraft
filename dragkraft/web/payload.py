@@ -103,7 +103,13 @@ def parse_form(values: dict[str, Any]) -> tuple[TrainConfig, SimulationSettings,
         )
     else:
         train = build_train(
-            train_name, extra_wagons=extra_wagons, adhesion_coefficient=adhesion
+            train_name,
+            extra_wagons=extra_wagons,
+            adhesion_coefficient=adhesion,
+            locomotive_mass_kg=_optional_tonnes(values, "loco_mass_t"),
+            locomotive_length_m=_optional_number(values, "loco_length_m"),
+            wagon_mass_kg=_optional_tonnes(values, "wagon_mass_t"),
+            wagon_length_m=_optional_number(values, "wagon_length_m"),
         )
     scenario_name = _text(values, "scenario_name", "Scenario")
     return train, settings, scenario_name, settings.sheet_name
@@ -118,6 +124,11 @@ def default_form_values() -> dict[str, Any]:
         "train_name": d.train_name,
         "extra_wagon_count": d.extra_wagon_count,
         "adhesion_coefficient": 0.6,
+        # Per-preset consist overrides (prefilled from the selected train's spec).
+        "loco_mass_t": round(TRAIN_LIBRARY[d.train_name].locomotive_mass_kg / 1000.0, 1),
+        "loco_length_m": round(TRAIN_LIBRARY[d.train_name].locomotive_length_m, 2),
+        "wagon_mass_t": round(TRAIN_LIBRARY[d.train_name].wagon_mass_kg / 1000.0, 1),
+        "wagon_length_m": round(TRAIN_LIBRARY[d.train_name].wagon_length_m, 2),
         "speed_override_kmh": d.speed_override_kmh,
         "flip_profiles": d.flip_profiles,
         "altitude_at_start_m": d.altitude_at_start_m,
@@ -165,7 +176,9 @@ def train_library() -> list[dict[str, Any]]:
             "custom": False,
             "locomotives": spec.locomotive_count,
             "locomotive_mass_t": round(spec.locomotive_mass_kg / 1000.0, 1),
+            "locomotive_length_m": round(spec.locomotive_length_m, 2),
             "wagon_mass_t": round(spec.wagon_mass_kg / 1000.0, 1),
+            "wagon_length_m": round(spec.wagon_length_m, 2),
             "vehicle_max_speed_kmh": spec.vehicle_max_speed_kmh,
             "traction_model": "Type 2 — piecewise",
             "max_tractive_force_kn": round(max(spec.traction_force_points_n) / 1000.0),
@@ -521,6 +534,23 @@ def _positive(values: dict[str, Any], key: str, default: float) -> float:
     if value <= 0:
         raise WebFormError(f"{key} must be greater than zero")
     return value
+
+
+def _optional_number(values: dict[str, Any], key: str) -> float | None:
+    """Return a float for ``key`` or ``None`` when it is absent/blank (no override)."""
+    value = values.get(key)
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError) as exc:
+        raise WebFormError(f"{key} must be numeric") from exc
+
+
+def _optional_tonnes(values: dict[str, Any], key: str) -> float | None:
+    """Like :func:`_optional_number` but converts tonnes to kilograms."""
+    value = _optional_number(values, key)
+    return None if value is None else value * 1000.0
 
 
 def _boolean(values: dict[str, Any], key: str, default: bool) -> bool:

@@ -39,6 +39,28 @@ def test_parse_form_builds_selected_library_train() -> None:
     assert train.locomotive_count == 2
 
 
+def test_parse_form_overrides_library_consist_mass_and_length() -> None:
+    train, _s, _n, _sh = parse_form(
+        {
+            "train_name": "freight",
+            "extra_wagon_count": 26,
+            "loco_mass_t": 76,
+            "loco_length_m": 15.4,
+            "wagon_mass_t": 61.6,
+            "wagon_length_m": 19.64,
+        }
+    )
+    assert train.name == "freight"  # still the preset's traction model
+    assert train.train_mass_kg == pytest.approx((76 + 26 * 61.6) * 1000.0)
+    assert train.train_length_m == pytest.approx(15.4 + 26 * 19.64)
+    assert train.adhesion_mass_kg == pytest.approx(76_000.0)
+
+
+def test_train_library_exposes_lengths_for_prefill() -> None:
+    freight = train_library()[0]
+    assert {"locomotive_mass_t", "locomotive_length_m", "wagon_mass_t", "wagon_length_m"} <= freight.keys()
+
+
 def test_parse_form_builds_custom_train_from_params() -> None:
     train, _s, _n, _sh = parse_form(
         {"train_name": "custom", "extra_wagon_count": 8, "custom_max_force_kn": 720}

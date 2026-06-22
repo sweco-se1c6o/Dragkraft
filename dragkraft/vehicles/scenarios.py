@@ -165,26 +165,42 @@ def build_train(
     *,
     extra_wagons: int | None = None,
     adhesion_coefficient: float = 0.6,
+    locomotive_mass_kg: float | None = None,
+    locomotive_length_m: float | None = None,
+    wagon_mass_kg: float | None = None,
+    wagon_length_m: float | None = None,
 ) -> TrainConfig:
-    """Build a TrainConfig for a named consist in :data:`TRAIN_LIBRARY`."""
+    """Build a TrainConfig for a named consist in :data:`TRAIN_LIBRARY`.
+
+    The mass/length keyword arguments override the library defaults when given
+    (locomotive values are totals across all locomotives; wagon values are
+    per-wagon), so a preset can be re-weighted or re-sized without switching to
+    the fully custom builder.
+    """
     spec = TRAIN_LIBRARY[key]
     wagons = spec.default_wagons if extra_wagons is None else int(extra_wagons)
-    wagon_mass = wagons * spec.wagon_mass_kg
-    train_mass = spec.locomotive_mass_kg + wagon_mass
+    loco_mass = spec.locomotive_mass_kg if locomotive_mass_kg is None else float(locomotive_mass_kg)
+    loco_length = (
+        spec.locomotive_length_m if locomotive_length_m is None else float(locomotive_length_m)
+    )
+    wagon_mass_each = spec.wagon_mass_kg if wagon_mass_kg is None else float(wagon_mass_kg)
+    wagon_length_each = spec.wagon_length_m if wagon_length_m is None else float(wagon_length_m)
+    wagon_mass = wagons * wagon_mass_each
+    train_mass = loco_mass + wagon_mass
     speed_intervals, force_intervals, intercepts, slopes = _type2_traction(
         spec.traction_speed_points_kmh, spec.traction_force_points_n
     )
     return TrainConfig(
         name=spec.key,
         locomotive_count=spec.locomotive_count,
-        locomotive_mass_kg=spec.locomotive_mass_kg,
+        locomotive_mass_kg=loco_mass,
         extra_wagon_count=wagons,
         wagon_mass_kg=wagon_mass,
         train_mass_kg=train_mass,
         dynamic_mass_kg=1.06 * train_mass,
-        adhesion_mass_kg=spec.locomotive_mass_kg,
+        adhesion_mass_kg=loco_mass,
         adhesion_coefficient=float(adhesion_coefficient),
-        train_length_m=spec.locomotive_length_m + wagons * spec.wagon_length_m,
+        train_length_m=loco_length + wagons * wagon_length_each,
         resistance_type=1,
         davis_a_n=_davis_a(train_mass),
         davis_b_n_per_mps=spec.davis_b_n_per_mps,

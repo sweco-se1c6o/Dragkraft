@@ -47,6 +47,14 @@ const CUSTOM_FIELDS = [
   { key: "custom_wagon_length_m", label: "Wagon length each [m]", type: "number", step: 0.1 },
 ];
 
+// Editable overrides for a library train (prefilled from its spec on selection).
+const OVERRIDE_FIELDS = [
+  { key: "loco_mass_t", label: "Loco mass total [t]", type: "number", step: 1, from: "locomotive_mass_t" },
+  { key: "loco_length_m", label: "Loco length total [m]", type: "number", step: 0.1, from: "locomotive_length_m" },
+  { key: "wagon_mass_t", label: "Wagon mass each [t]", type: "number", step: 0.5, from: "wagon_mass_t" },
+  { key: "wagon_length_m", label: "Wagon length each [m]", type: "number", step: 0.1, from: "wagon_length_m" },
+];
+
 let trainLibrary = [];
 
 const ADVANCED_FIELDS = [
@@ -145,6 +153,7 @@ function buildForm(defaults) {
   select.addEventListener("change", () => updateTrainUI(select.value));
 
   renderFields(document.getElementById("custom-train"), CUSTOM_FIELDS, defaults);
+  renderFields(document.getElementById("train-overrides-fields"), OVERRIDE_FIELDS, defaults);
   renderFields(document.getElementById("form"), CORE_FIELDS, defaults);
   renderFields(document.getElementById("form-advanced"), ADVANCED_FIELDS, defaults);
   updateTrainUI(select.value);
@@ -153,21 +162,26 @@ function buildForm(defaults) {
 function updateTrainUI(key) {
   const features = document.getElementById("train-features");
   const custom = document.getElementById("custom-train");
+  const overrides = document.getElementById("train-overrides");
   const lib = trainLibrary.find((t) => t.key === key);
   const isCustom = lib && lib.custom;
   custom.classList.toggle("hidden", !isCustom);
+  overrides.classList.toggle("hidden", !lib || isCustom);
   if (!lib || isCustom) {
     features.classList.add("hidden");
     return;
   }
   features.classList.remove("hidden");
+  // Prefill the editable mass/length fields from the selected train's spec.
+  for (const f of OVERRIDE_FIELDS) {
+    const el = document.querySelector(`#train-overrides-fields [data-field="${f.key}"]`);
+    if (el && lib[f.from] != null) el.value = lib[f.from];
+  }
   const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
   features.innerHTML =
     `<p class="train-desc">${lib.description}</p>` +
     '<dl class="mini-spec">' +
     row("Locomotives", lib.locomotives) +
-    row("Loco mass", lib.locomotive_mass_t + " t") +
-    row("Wagon mass", lib.wagon_mass_t + " t / ea") +
     row("Max force", lib.max_tractive_force_kn + " kN") +
     row("Max speed", lib.vehicle_max_speed_kmh + " km/h") +
     row("Traction", lib.traction_model) +
