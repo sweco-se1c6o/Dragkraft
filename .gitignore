@@ -17,3 +17,8 @@ web/dist/
 project/
 m.txt
 summary.txt
+# Proprietary client deliverables & track-data figures (this repo is public — never commit)
+PM_*.pdf
+PM_*.docx
+resultprofiles/
+scratch_pm.txt

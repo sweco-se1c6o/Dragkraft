@@ -29,8 +29,18 @@ def test_parse_form_rejects_unknown_train_preset() -> None:
 def test_train_library_exposes_presets_and_custom() -> None:
     keys = [t["key"] for t in train_library()]
     assert keys[:1] == ["freight"]
+    assert "rc4" in keys and "vectron" in keys
     assert "green-cargo" in keys and "iore" in keys and "td" in keys
     assert keys[-1] == "custom"
+
+
+def test_parse_form_builds_vectron_with_datasheet_specs() -> None:
+    train, _s, _n, _sh = parse_form({"train_name": "vectron", "extra_wagon_count": 26})
+    assert train.name == "vectron"
+    assert train.locomotive_count == 1
+    assert train.adhesion_mass_kg == pytest.approx(90_000.0)
+    assert train.continuous_power_w == pytest.approx(6.4e6)
+    assert train.max_force_n == pytest.approx(300_000.0)
 
 
 def test_parse_form_builds_selected_library_train() -> None:

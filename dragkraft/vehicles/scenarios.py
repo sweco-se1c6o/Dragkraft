@@ -79,6 +79,54 @@ TRAIN_LIBRARY: dict[str, TrainSpec] = {
         type1_start_speed_kmh=5.0,
         type1_power_w=2 * 5.5833e6,
     ),
+    "rc4": TrainSpec(
+        key="rc4",
+        label="Freight — RC4 (single)",
+        description="Single Rc4 electric locomotive (78 t) hauling the same goods consist. "
+        "Legacy MATLAB case 7; for a like-for-like loco comparison the wagon running "
+        "resistance is kept identical to the TRAXX preset.",
+        locomotive_count=1,
+        locomotive_mass_kg=78e3,
+        locomotive_length_m=15.5,
+        wagon_mass_kg=84e3,
+        wagon_length_m=11.0,
+        default_wagons=21,
+        # Same goods-wagon Davis B/C as the TRAXX preset so only the loco differs.
+        davis_b_n_per_mps=124.33 * 3.6,
+        davis_c_n_per_mps2=5.06 * 3.6**2,
+        vehicle_max_speed_kmh=100.0,
+        traction_speed_points_kmh=(0.0, 35.0, 65.0, 100.0, 120.0),
+        traction_force_points_n=tuple(np.array([245.0, 196.0, 176.0, 136.0, 103.0]) * 1e3),
+        type1_max_force_n=300e3,
+        type1_start_force_n=300e3,
+        type1_start_speed_kmh=5.0,
+        type1_power_w=5.5833e6,
+    ),
+    "vectron": TrainSpec(
+        key="vectron",
+        label="Freight — Vectron 193 (single)",
+        description="Single Siemens Vectron (class 193) electric locomotive (90 t). Not in the "
+        "legacy MATLAB library; specs from the Siemens data sheet (300 kN starting tractive "
+        "effort, 6.4 MW, 18.98 m, Bo'Bo' 22.5 t/axle). Wagon resistance kept identical to the "
+        "other single-loco presets so only the locomotive differs.",
+        locomotive_count=1,
+        locomotive_mass_kg=90e3,
+        locomotive_length_m=18.98,
+        wagon_mass_kg=84e3,
+        wagon_length_m=11.0,
+        default_wagons=21,
+        # Same goods-wagon Davis B/C as the other single-loco presets.
+        davis_b_n_per_mps=124.33 * 3.6,
+        davis_c_n_per_mps2=5.06 * 3.6**2,
+        vehicle_max_speed_kmh=160.0,
+        # 300 kN held to the 6.4 MW power knee (~77 km/h), then power-limited (F = P/v).
+        traction_speed_points_kmh=(0.0, 77.0, 100.0, 140.0, 160.0),
+        traction_force_points_n=tuple(np.array([300.0, 300.0, 230.0, 165.0, 144.0]) * 1e3),
+        type1_max_force_n=300e3,
+        type1_start_force_n=300e3,
+        type1_start_speed_kmh=5.0,
+        type1_power_w=6.4e6,
+    ),
     "green-cargo": TrainSpec(
         key="green-cargo",
         label="Green Cargo Co-Co (TransMontana)",
